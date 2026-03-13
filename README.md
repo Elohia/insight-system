@@ -176,7 +176,9 @@ main()
 ```
 insight-system/
 ├── core/                      # 神经元洞见引擎
-│   └── insight_system.py      # 核心洞见系统
+│   ├── insight_system.py      # 核心洞见系统
+│   ├── memory_writer.py       # OpenClaw 记忆写入器
+│   └── openclaw_api.py        # OpenClaw API 客户端
 ├── collider/                  # 碰撞引擎
 │   ├── collider.py            # 碰撞引擎
 │   ├── questioner.py          # 追问引擎
@@ -197,6 +199,7 @@ insight-system/
 ├── run.sh                     # 统一入口脚本
 ├── PLUGIN.md                  # 扩展文档
 ├── SKILL.md                   # OpenClaw 技能配置
+├── INTEGRATION.md             # OpenClaw 集成方案
 ├── README.md                  # 本文件
 └── .env.example               # 环境变量示例
 ```
@@ -248,6 +251,98 @@ crontab -e
 - 碎片（Fragments）
 - 洞见（Insights）
 - 问题（Questions）
+
+## OpenClaw 记忆接口集成
+
+洞见系统已与 OpenClaw 记忆系统深度集成：
+
+### ✅ 已支持功能
+
+1. **读取 OpenClaw 记忆文件**
+   - 自动读取 `workspace/memory/*.md` 文件
+   - 提取标题和内容作为记忆碎片
+
+2. **写入 OpenClaw 记忆文件**
+   - 自动将洞见写入 `workspace/memory/YYYY-MM-DD.md`
+   - 支持写入长期记忆文件 `MEMORY.md`
+   - 自动添加标签（#洞见 #碰撞 #追问 等）
+
+3. **双向同步**
+   - 洞见系统读取 OpenClaw 记忆 → 生成洞见 → 写回 OpenClaw 记忆
+   - 形成闭环，让洞见成为记忆的一部分
+
+### 📝 集成效果
+
+运行洞见系统后，会在记忆文件中看到：
+
+```markdown
+### 💡 洞见 (14:30)
+
+这是碰撞产生的洞见内容...
+
+#洞见 #碰撞 #创新
+
+### ❓ 追问 (14:35)
+
+这个洞见对你有什么启发？
+
+#追问 #需要思考
+
+### ⚡ 碰撞洞见 (15:00)
+
+**碎片 1**: 第一次发现这个现象...
+
+**碎片 2**: 后来又遇到了类似情况...
+
+**洞见**: 这两个现象之间可能存在某种联系...
+
+#洞见 #碰撞
+```
+
+### 🔧 高级配置
+
+#### 调用 OpenClaw 记忆搜索 API
+
+洞见系统支持调用 OpenClaw 的语义搜索功能：
+
+```python
+from core.openclaw_api import OpenClawAPI
+
+api = OpenClawAPI()
+
+# 搜索记忆
+results = api.search_memory("项目经验", max_results=10)
+
+# 重新索引记忆
+api.index_memory(force=True)
+
+# 查看记忆系统状态
+status = api.get_memory_status()
+```
+
+#### 使用 OpenClaw Hooks 自动触发
+
+可以配置 OpenClaw Hook，在新增记忆时自动触发洞见生成：
+
+```bash
+# 创建 hook 脚本
+cat > ~/.openclaw/hooks/post-memory-save.sh << 'EOF'
+#!/bin/bash
+cd /workspace/projects/extensions/insight-system
+python3 core/insight_system.py
+EOF
+
+# 添加执行权限
+chmod +x ~/.openclaw/hooks/post-memory-save.sh
+```
+
+### 📚 相关文档
+
+详细的集成方案请参考 [INTEGRATION.md](./INTEGRATION.md)，包含：
+- 双向同步实现细节
+- API 调用示例
+- 标签系统集成
+- 自动触发配置
 
 ## 常见问题
 

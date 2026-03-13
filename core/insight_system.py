@@ -61,9 +61,31 @@ class NeuronInsight:
         with open(STATE_FILE, 'w') as f:
             json.dump(self.state, f, indent=2, ensure_ascii=False)
         
+        # 同步到 OpenClaw 记忆文件
+        self.sync_to_openclaw_memory()
+        
         # 多模态记忆：同步洞见到向量数据库
         if MULTIMODAL_AVAILABLE:
             self.sync_to_multimodal()
+    
+    def sync_to_openclaw_memory(self):
+        """将洞见同步到 OpenClaw 记忆文件"""
+        try:
+            from memory_writer import MemoryWriter
+            
+            writer = MemoryWriter()
+            
+            # 同步最新的洞见
+            for insight in self.state.get("insights", [])[-5:]:  # 最近5条
+                writer.write_to_daily(
+                    insight.get("text", ""),
+                    tags=insight.get("tags", []),
+                    source="reinforce" if insight.get("weight", 0.5) > 0.5 else "new"
+                )
+            
+            print("📊 已同步洞见到 OpenClaw 记忆文件")
+        except Exception as e:
+            print(f"⚠️ OpenClaw 记忆同步失败: {e}")
     
     def sync_to_multimodal(self):
         """将洞见同步到多模态记忆系统"""
