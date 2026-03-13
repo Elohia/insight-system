@@ -1,7 +1,7 @@
 {
   "meta": {
     "lastTouchedVersion": "2026.3.12",
-    "lastTouchedAt": "2026-03-13T11:01:11.554Z"
+    "lastTouchedAt": "2026-03-13T11:52:42.472Z"
   },
   "agents": {
     "defaults": {
@@ -24,6 +24,7 @@
     "ownerDisplay": "raw"
   },
   "gateway": {
+    "mode": "local",
     "controlUi": {
       "enabled": true,
       "allowedOrigins": [
