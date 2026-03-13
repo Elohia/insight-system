@@ -1,7 +1,7 @@
 {
   "meta": {
     "lastTouchedVersion": "2026.3.12",
-    "lastTouchedAt": "2026-03-13T11:59:07.086Z"
+    "lastTouchedAt": "2026-03-13T12:00:44.126Z"
   },
   "agents": {
     "defaults": {
@@ -27,7 +27,7 @@
     "port": 5000,
     "mode": "local",
     "controlUi": {
-      "enabled": true,
+      "enabled": false,
       "allowedOrigins": [
         "https://dev.coze.site",
         "https://code.coze.cn",
