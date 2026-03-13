@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.3.12",
+    "lastTouchedAt": "2026-03-13T11:01:11.554Z"
+  },
+  "agents": {
+    "defaults": {
+      "compaction": {
+        "mode": "safeguard"
+      },
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8
+      }
+    }
+  },
+  "messages": {
+    "ackReactionScope": "group-mentions"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true,
+    "ownerDisplay": "raw"
+  },
+  "gateway": {
+    "controlUi": {
+      "enabled": true,
+      "allowedOrigins": [
+        "https://dev.coze.site",
+        "https://code.coze.cn",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000"
+      ],
+      "dangerouslyAllowHostHeaderOriginFallback": true,
+      "allowInsecureAuth": true,
+      "dangerouslyDisableDeviceAuth": true
+    },
+    "auth": {
+      "mode": "token",
+      "token": "a350f119163729fefef43e0e10c8919b4045f6ca6ee597f8",
+      "allowTailscale": true
+    },
+    "allowRealIpFallback": true
+  }
+}
