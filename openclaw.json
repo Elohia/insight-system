@@ -1,7 +1,7 @@
 {
   "meta": {
     "lastTouchedVersion": "2026.3.12",
-    "lastTouchedAt": "2026-03-13T11:52:42.472Z"
+    "lastTouchedAt": "2026-03-13T11:59:07.086Z"
   },
   "agents": {
     "defaults": {
@@ -24,6 +24,7 @@
     "ownerDisplay": "raw"
   },
   "gateway": {
+    "port": 5000,
     "mode": "local",
     "controlUi": {
       "enabled": true,
@@ -42,6 +43,9 @@
       "token": "a350f119163729fefef43e0e10c8919b4045f6ca6ee597f8",
       "allowTailscale": true
     },
+    "trustedProxies": [
+      "0.0.0.0/0"
+    ],
     "allowRealIpFallback": true
   }
 }
