@@ -3,6 +3,7 @@
 神经元洞见系统 v1.0
 全功能 + Token 优化 + 闭环自动化
 支持多数据源：飞书消息、任务记录、文件变化
+多模态支持：文本 + 图片 + 视频 向量化
 """
 
 import os
@@ -13,10 +14,21 @@ import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# 尝试导入多模态记忆系统
+try:
+    import sys
+    sys.path.insert(0, f"{os.path.dirname(__file__)}")
+    from multimodal_memory import MultimodalMemory
+    MULTIMODAL_AVAILABLE = True
+except ImportError:
+    MULTIMODAL_AVAILABLE = False
+    print("⚠️ 多模态记忆系统未加载")
+
 # 配置
 WORKSPACE = "/workspace/projects/workspace"
 MEMORY_DIR = f"{WORKSPACE}/memory"
 STATE_FILE = f"{WORKSPACE}/.openclaw/insight-state.json"
+VECTOR_DB = f"{WORKSPACE}/.openclaw/vector-db.json"
 CONFIG = {
     "threshold": 0.7,
     "max_tokens_per_summary": 200,
@@ -48,6 +60,32 @@ class NeuronInsight:
         self.state["run_count"] += 1
         with open(STATE_FILE, 'w') as f:
             json.dump(self.state, f, indent=2, ensure_ascii=False)
+        
+        # 多模态记忆：同步洞见到向量数据库
+        if MULTIMODAL_AVAILABLE:
+            self.sync_to_multimodal()
+    
+    def sync_to_multimodal(self):
+        """将洞见同步到多模态记忆系统"""
+        try:
+            memory = MultimodalMemory()
+            
+            # 同步最新的洞见
+            for insight in self.state.get("insights", [])[-5:]:  # 最近5条
+                # 检查是否已存在
+                existing = [v for v in memory.db.get("vectors", []) 
+                          if v.get("type") == "text" and insight.get("text", "").startswith(v.get("content", "")[:50])]
+                if not existing:
+                    memory.add_text(
+                        insight.get("text", ""),
+                        {"source": "insight", "tags": insight.get("tags", [])}
+                    )
+            
+            # 统计
+            stats = memory.get_stats()
+            print(f"📊 多模态记忆: {stats['total_memories']} 条记忆")
+        except Exception as e:
+            print(f"⚠️ 多模态同步失败: {e}")
     
     def fetch_queue_fragments(self):
         """从消息队列获取碎片"""
