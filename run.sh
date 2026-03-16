@@ -5,9 +5,21 @@
 WORKSPACE="/workspace/projects/workspace"
 INSIGHTS_DIR="/workspace/projects/extensions/insight-system"
 
-# 加载环境变量
-if [ -f "$WORKSPACE/.env" ]; then
-    export DASHSCOPE_API_KEY=$(cat "$WORKSPACE/.env" | grep DASHSCOPE_API_KEY | cut -d= -f2)
+# 设置 Python 路径
+export PYTHONPATH="$INSIGHTS_DIR:$INSIGHTS_DIR/storage:$INSIGHTS_DIR/utils:$PYTHONPATH"
+
+# 加载环境变量（优先从插件目录加载）
+if [ -f "$INSIGHTS_DIR/.env" ]; then
+    set -a
+    source "$INSIGHTS_DIR/.env"
+    set +a
+fi
+
+# 兼容旧版本：也从 collider/.env 加载
+if [ -f "$INSIGHTS_DIR/collider/.env" ]; then
+    set -a
+    source "$INSIGHTS_DIR/collider/.env"
+    set +a
 fi
 
 show_help() {

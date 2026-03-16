@@ -1,34 +1,116 @@
+# ========================================
+# 敏感信息 - 绝对不要提交
+# ========================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# API Keys (硬编码检查)
+**/api_key*.py
+**/secrets*.py
+
+# ========================================
+# 个人数据 - 记忆和状态文件
+# ========================================
+memories/
+*.md.backup
+memory-*.json
+insight-state.json
+vector-db.json
+memory-fuzzy-layer.json
+message-queue.json
+heartbeat-state.json
+insights_hash.json
+
+# OpenClaw 工作目录
+.openclaw/
+workspace/
+
+# ========================================
 # Python
+# ========================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-*.egg-info/
-dist/
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# 环境变量
-.env
-.env.local
+# 虚拟环境
+venv/
+ENV/
+env/
+.venv/
 
-# 数据库文件
+# ========================================
+# 日志和数据库
+# ========================================
+*.log
 *.db
 *.sqlite
 *.sqlite3
 
-# 日志文件
-*.log
-
-# IDE
+# ========================================
+# IDE 和编辑器
+# ========================================
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+.project
+.pydevproject
+.settings/
 
+# ========================================
 # 操作系统
+# ========================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# OpenClaw 状态文件
-*.json.bak
+# ========================================
+# 测试和覆盖率
+# ========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ========================================
+# 备份文件
+# ========================================
+*.bak
+*.backup
+*.old
+*.orig
+
+# ========================================
+# 临时文件
+# ========================================
+*.tmp
+*.temp
+.cache/

@@ -1,23 +1,28 @@
 #!/usr/bin/env python3
 """
-神经元洞见系统 v1.0
-全功能 + Token 优化 + 闭环自动化
-支持多数据源：飞书消息、任务记录、文件变化
-多模态支持：文本 + 图片 + 视频 向量化
+神经元洞见系统 v2.0
+洞见提取 + 降噪 + 深度追问
 """
 
 import os
 import re
 import json
 import hashlib
-import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# 尝试导入多模态记忆系统
+# 导入洞见提取器
 try:
     import sys
-    sys.path.insert(0, f"{os.path.dirname(__file__)}")
+    sys.path.insert(0, os.path.dirname(__file__))
+    from insight_extractor import InsightExtractor
+    EXTRACTOR_AVAILABLE = True
+except ImportError:
+    EXTRACTOR_AVAILABLE = False
+    print("⚠️ 洞见提取器未加载")
+
+# 尝试导入多模态记忆系统
+try:
     from multimodal_memory import MultimodalMemory
     MULTIMODAL_AVAILABLE = True
 except ImportError:
@@ -36,11 +41,24 @@ CONFIG = {
     "cache_size": 50,
 }
 
+
 class NeuronInsight:
     def __init__(self):
         self.state = self.load_state()
         self.fragments = []
-        self.new_fragments = []  # 新增碎片
+        self.new_fragments = []
+        self.extractor = InsightExtractor() if EXTRACTOR_AVAILABLE else None
+        
+        # 统计
+        self.stats = {
+            "insights_created": 0,
+            "tasks_filtered": 0,
+            "noise_filtered": 0,
+            "conversations_filtered": 0
+        }
+        
+        # 追踪本次运行新创建的洞见ID
+        self.new_insight_ids = []
     
     def load_state(self):
         if os.path.exists(STATE_FILE):
@@ -61,51 +79,82 @@ class NeuronInsight:
         with open(STATE_FILE, 'w') as f:
             json.dump(self.state, f, indent=2, ensure_ascii=False)
         
-        # 同步到 OpenClaw 记忆文件
         self.sync_to_openclaw_memory()
         
-        # 多模态记忆：同步洞见到向量数据库
         if MULTIMODAL_AVAILABLE:
             self.sync_to_multimodal()
+        
+        # 更新模糊层（如果有新洞见）
+        if self.new_insight_ids:
+            self.update_fuzzy_layer()
+    
+    def update_fuzzy_layer(self):
+        """更新三层记忆的模糊层"""
+        try:
+            from three_layer_memory import update_fuzzy_layer
+            fuzzy = update_fuzzy_layer()
+            print(f"🔮 模糊层已更新 ({fuzzy['stats']['token_estimate']} tokens)")
+        except ImportError:
+            pass  # 三层记忆系统不可用时静默跳过
     
     def sync_to_openclaw_memory(self):
-        """将洞见同步到 OpenClaw 记忆文件"""
+        """将新洞见同步到 OpenClaw 记忆文件（只写入本次新创建的洞见）"""
+        if not self.new_insight_ids:
+            print("📊 本次无新洞见，跳过同步")
+            return
+        
         try:
             from memory_writer import MemoryWriter
-            
             writer = MemoryWriter()
             
-            # 同步最新的洞见
-            for insight in self.state.get("insights", [])[-5:]:  # 最近5条
-                writer.write_to_daily(
-                    insight.get("text", ""),
-                    tags=insight.get("tags", []),
-                    source="reinforce" if insight.get("weight", 0.5) > 0.5 else "new"
-                )
+            # 只同步新创建的洞见
+            new_insights = [i for i in self.state.get("insights", []) 
+                           if i.get("id") in self.new_insight_ids]
             
-            print("📊 已同步洞见到 OpenClaw 记忆文件")
+            written_count = 0
+            for insight in new_insights:
+                success = writer.write_to_daily(
+                    insight.get("insight_text", ""),
+                    tags=insight.get("tags", ["洞见", "新发现"]),
+                    source="insight"
+                )
+                if success:
+                    written_count += 1
+            
+            print(f"📊 已同步 {written_count} 条新洞见到记忆文件")
         except Exception as e:
-            print(f"⚠️ OpenClaw 记忆同步失败: {e}")
+            print(f"⚠️ 同步失败: {e}")
     
     def sync_to_multimodal(self):
-        """将洞见同步到多模态记忆系统"""
+        """同步到多模态记忆（只写入本次新创建的洞见，带去重）"""
+        if not self.new_insight_ids:
+            return
+        
         try:
             memory = MultimodalMemory()
+            new_insights = [i for i in self.state.get("insights", []) 
+                           if i.get("id") in self.new_insight_ids]
             
-            # 同步最新的洞见
-            for insight in self.state.get("insights", [])[-5:]:  # 最近5条
-                # 检查是否已存在
-                existing = [v for v in memory.db.get("vectors", []) 
-                          if v.get("type") == "text" and insight.get("text", "").startswith(v.get("content", "")[:50])]
-                if not existing:
-                    memory.add_text(
-                        insight.get("text", ""),
+            added_count = 0
+            skip_count = 0
+            for insight in new_insights:
+                insight_text = insight.get("insight_text", "") or insight.get("text", "")
+                # 确保文本不为空且长度足够
+                if insight_text and len(insight_text.strip()) >= 2:
+                    # 去重检查已内置在 add_text 中
+                    result = memory.add_text(
+                        insight_text,
                         {"source": "insight", "tags": insight.get("tags", [])}
                     )
+                    if result:
+                        added_count += 1
+                    else:
+                        skip_count += 1
+                else:
+                    skip_count += 1
             
-            # 统计
             stats = memory.get_stats()
-            print(f"📊 多模态记忆: {stats['total_memories']} 条记忆")
+            print(f"📊 多模态记忆: {stats['total_memories']} 条 (新增 {added_count}, 跳过 {skip_count})")
         except Exception as e:
             print(f"⚠️ 多模态同步失败: {e}")
     
@@ -141,15 +190,11 @@ class NeuronInsight:
         print("📥 读取记忆碎片...")
         
         fragments = []
-        
-        # 读取最近的 memory 文件
         memory_files = sorted(Path(MEMORY_DIR).glob("*.md"))
         
-        for mf in memory_files[-3:]:  # 最近3个文件
+        for mf in memory_files[-3:]:
             try:
                 content = mf.read_text()
-                
-                # 提取标题下内容作为碎片
                 lines = content.split('\n')
                 current_section = ""
                 
@@ -173,14 +218,9 @@ class NeuronInsight:
         
         return fragments
     
-    def fetch_task_fragments(self):
-        """从飞书任务获取碎片"""
-        # 简化处理
-        return []
-    
     def add_fragment(self, text, source="unknown"):
         fragment = {
-            "text": text[:200],  # 限制长度
+            "text": text[:500],  # 允许更长，因为需要提取
             "source": source,
             "timestamp": datetime.now().isoformat(),
             "hash": hashlib.md5(text.encode()).hexdigest()
@@ -195,8 +235,8 @@ class NeuronInsight:
         return fragment
     
     def calculate_similarity(self, text1, text2):
-        words1 = set(re.findall(r'\w+', text1.lower()))
-        words2 = set(re.findall(r'\w+', text2.lower()))
+        words1 = set(re.findall(r'[\w\u4e00-\u9fff]+', text1.lower()))
+        words2 = set(re.findall(r'[\w\u4e00-\u9fff]+', text2.lower()))
         
         if not words1 or not words2:
             return 0.0
@@ -207,11 +247,14 @@ class NeuronInsight:
         return intersection / union if union > 0 else 0.0
     
     def check_connections(self, fragment):
+        """检查与已有洞见的连接"""
         max_sim = 0.0
         best_match = None
         
         for insight in self.state["insights"]:
-            sim = self.calculate_similarity(fragment["text"], insight["text"])
+            # 比较洞见文本，而不是原始碎片
+            insight_text = insight.get("insight_text", insight.get("text", ""))
+            sim = self.calculate_similarity(fragment["text"], insight_text)
             if sim > max_sim:
                 max_sim = sim
                 best_match = insight
@@ -219,40 +262,115 @@ class NeuronInsight:
         return max_sim, best_match
     
     def process(self):
-        """处理所有碎片"""
+        """处理所有碎片 - v2.0 带洞见提取"""
         insights_generated = []
         
         for fragment in self.fragments:
-            sim, match = self.check_connections(fragment)
-            
-            if sim >= CONFIG["threshold"] and match:
-                # 强化
-                self.state["connections"][match["id"]] = \
-                    self.state["connections"].get(match["id"], 0.1) + 0.1
-                insights_generated.append({
-                    "type": "reinforce",
-                    "fragment": fragment,
-                    "similar_to": match["text"][:50],
-                    "similarity": round(sim, 2)
-                })
+            # 1. 使用提取器判断类型
+            if self.extractor:
+                extracted = self.extractor.extract(fragment["text"])
+                frag_type = extracted.get("type", "noise")
+                insight_text = extracted.get("insight_text")
+                follow_up = extracted.get("follow_up_question")
+                confidence = extracted.get("confidence", 0.5)
             else:
-                # 积累
-                if sim < 0.3:
+                # 无提取器时，使用规则判断
+                frag_type, insight_text, follow_up, confidence = self.rule_based_classify(fragment["text"])
+            
+            # 2. 根据类型处理
+            if frag_type == "task":
+                self.stats["tasks_filtered"] += 1
+                # 不存储，但记录处理过
+                continue
+            
+            elif frag_type == "noise":
+                self.stats["noise_filtered"] += 1
+                continue
+            
+            elif frag_type == "conversation":
+                self.stats["conversations_filtered"] += 1
+                continue
+            
+            elif frag_type == "insight":
+                # 3. 检查与已有洞见的连接
+                sim, match = self.check_connections(fragment)
+                
+                if sim >= CONFIG["threshold"] and match:
+                    # 强化已有洞见
+                    match_id = match.get("id", len(self.state["insights"]))
+                    self.state["connections"][str(match_id)] = \
+                        self.state["connections"].get(str(match_id), 0.1) + 0.1
+                    
+                    # 更新洞见权重
+                    match["weight"] = match.get("weight", 0.5) + 0.1
+                    match["reinforced_at"] = datetime.now().isoformat()
+                    
+                    insights_generated.append({
+                        "type": "reinforce",
+                        "insight_text": insight_text,
+                        "similar_to": match.get("insight_text", "")[:50],
+                        "similarity": round(sim, 2)
+                    })
+                else:
+                    # 4. 创建新洞见
                     new_insight = {
                         "id": len(self.state["insights"]) + 1,
-                        "text": fragment["text"][:100],
+                        "text": fragment["text"][:200],  # 原文
+                        "insight_text": insight_text,  # 提取的洞见
+                        "follow_up_question": follow_up,
+                        "confidence": confidence,
                         "source": fragment["source"],
                         "created": fragment["timestamp"],
-                        "weight": 0.5
+                        "weight": 0.5,
+                        "type": "insight"
                     }
                     self.state["insights"].append(new_insight)
+                    self.new_insight_ids.append(new_insight["id"])  # 记录新洞见ID
+                    self.stats["insights_created"] += 1
+                    
+                    insights_generated.append({
+                        "type": "new",
+                        "insight_text": insight_text[:50],
+                        "follow_up": follow_up
+                    })
             
             self.state["processed_hashes"].append(fragment["hash"])
         
         self.forget_old()
         return insights_generated
     
+    def rule_based_classify(self, text):
+        """规则洞见分类（无LLM时备用）"""
+        text = text.strip()
+        
+        # 任务关键词
+        task_keywords = ["查看", "查询", "汇报", "列出", "下载", "上传", "发送", "运行", "执行"]
+        if any(kw in text for kw in task_keywords):
+            return "task", None, None, 0.8
+        
+        # 对话关键词
+        if any(kw in text for kw in ["怎么", "为什么", "是什么", "如何", "吗？", "呢"]):
+            return "conversation", None, None, 0.6
+        
+        # 洞见关键词
+        insight_keywords = ["我发现", "我意识到", "洞见", "本质", "核心", "关键", "其实", "真正的", "意义"]
+        if any(kw in text for kw in insight_keywords):
+            # 尝试提取洞见文本
+            for kw in insight_keywords:
+                if kw in text:
+                    idx = text.index(kw)
+                    insight = text[idx:idx+100]
+                    break
+            else:
+                insight = text[:100]
+            
+            return "insight", insight, "这为什么重要？", 0.7
+        
+        # 默认噪音
+        return "noise", None, None, 0.5
+    
     def forget_old(self):
+        """遗忘机制"""
         if len(self.state["connections"]) > CONFIG["cache_size"]:
             sorted_conn = sorted(
                 self.state["connections"].items(),
@@ -268,41 +386,49 @@ class NeuronInsight:
             "fragments_processed": len(self.fragments),
             "new_fragments": len(self.new_fragments),
             "total_insights": len(self.state["insights"]),
+            "real_insights": len([i for i in self.state["insights"] if i.get("type") == "insight"]),
             "connections": len(self.state["connections"]),
-            "run_count": self.state["run_count"]
+            "run_count": self.state["run_count"],
+            "stats": self.stats
         }
 
 
 def main():
-    print("🧠 神经元洞见系统 v1.0 启动")
+    print("🧠 神经元洞见系统 v2.0 启动")
     
     insight = NeuronInsight()
     
     # 1. 收集碎片
-    # 消息队列（主会话手动加入的）
     queue_fragments = insight.fetch_queue_fragments()
     for frag in queue_fragments:
         insight.add_fragment(frag["text"], source="queue")
     
-    # 从记忆文件提取
     memory_fragments = insight.fetch_memory_fragments()
     for frag in memory_fragments:
         insight.add_fragment(frag, source="memory")
     
-    # 3. 处理
+    # 2. 处理（带提取）
     results = insight.process()
     
-    # 4. 输出
+    # 3. 输出
     summary = insight.generate_summary()
-    print(f"📊 状态: {summary}")
+    print(f"\n📊 状态:")
+    print(f"   总碎片: {summary['fragments_processed']}")
+    print(f"   真洞见: {summary['real_insights']}")
+    print(f"   过滤 - 任务: {summary['stats']['tasks_filtered']}, 噪音: {summary['stats']['noise_filtered']}, 对话: {summary['stats']['conversations_filtered']}")
     
     if results:
-        print(f"💡 产生 {len(results)} 个洞见/强化")
-        for r in results[:3]:
-            print(f"   - {r['type']}: {r.get('similar_to', r['fragment']['text'][:30])}")
+        print(f"\n💡 本次产生 {len(results)} 个洞见:")
+        for r in results[:5]:
+            if r["type"] == "new":
+                print(f"   ✨ 新洞见: {r['insight_text']}")
+                if r.get("follow_up"):
+                    print(f"      ❓ 追问: {r['follow_up']}")
+            else:
+                print(f"   🔁 强化: {r.get('similar_to', 'N/A')[:30]}")
     
     insight.save_state()
-    print("✅ 运行完成")
+    print("\n✅ 运行完成")
 
 
 if __name__ == "__main__":

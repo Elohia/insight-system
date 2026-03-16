@@ -33,8 +33,8 @@ CONFIG = {
     "free_limit": 1_000_000,  # 100万Token免费额度
 }
 
-# 设置 API Key（优先使用环境变量）
-dashscope.api_key = os.getenv('DASHSCOPE_API_KEY', 'sk-53a98cafbf3743879685c95b54c8965d')
+# 设置 API Key（仅从环境变量读取，不硬编码）
+dashscope.api_key = os.getenv('DASHSCOPE_API_KEY', '')
 
 
 class MultimodalMemory:
@@ -60,14 +60,41 @@ class MultimodalMemory:
             json.dump(self.db, f, indent=2, ensure_ascii=False)
     
     def generate_id(self, content):
-        """生成唯一ID"""
-        return hashlib.md5(f"{content}{time.time()}".encode()).hexdigest()[:12]
+        """生成唯一ID（仅基于内容，保证相同内容生成相同ID）"""
+        return hashlib.md5(content.encode('utf-8')).hexdigest()[:12]
+    
+    def exists(self, content):
+        """检查内容是否已存在（去重检查）"""
+        content_hash = self.generate_id(content)
+        for v in self.db["vectors"]:
+            if v.get("id") == content_hash:
+                return True
+        return False
+    
+    def exists_by_content(self, content):
+        """通过内容文本检查是否存在（更宽松的去重）"""
+        content_normalized = content.strip()[:200]  # 取前200字符比较
+        for v in self.db["vectors"]:
+            existing = v.get("content", "").strip()[:200]
+            if existing == content_normalized:
+                return True
+        return False
     
     def embed_text(self, text):
         """生成文本向量"""
+        # 空文本检查
+        if not text or not text.strip():
+            print("⚠️ 文本为空，跳过向量化")
+            return None
+        
+        # 最小长度检查
+        if len(text.strip()) < 2:
+            print(f"⚠️ 文本过短，跳过: {text[:20]}...")
+            return None
+        
         resp = MultiModalEmbedding.call(
             model=CONFIG["model"],
-            input=[{'text': text}],
+            input=[{'text': text.strip()}],
             parameters={'dimension': CONFIG["dimension"]}
         )
         if resp.status_code == 200:
@@ -128,8 +155,23 @@ class MultimodalMemory:
             print(f"❌ 融合向量生成失败: {resp.message}")
             return None
     
-    def add_text(self, content, metadata=None):
-        """添加文本记忆"""
+    def add_text(self, content, metadata=None, skip_dedup=False):
+        """添加文本记忆（带去重和空内容检查）"""
+        # 空内容检查
+        if not content or not content.strip():
+            print("⚠️ 内容为空，跳过添加")
+            return None
+        
+        # 最小长度检查
+        if len(content.strip()) < 2:
+            print(f"⚠️ 内容过短，跳过: {content[:20]}...")
+            return None
+        
+        # 去重检查
+        if not skip_dedup and self.exists_by_content(content):
+            print(f"⚠️ 内容已存在，跳过: {content[:50]}...")
+            return None
+        
         vector = self.embed_text(content)
         if not vector:
             return None
@@ -151,8 +193,16 @@ class MultimodalMemory:
         print(f"✅ 添加文本记忆: {content[:50]}...")
         return record["id"]
     
-    def add_image(self, image_url, description=None, metadata=None):
-        """添加图片记忆"""
+    def add_image(self, image_url, description=None, metadata=None, skip_dedup=False):
+        """添加图片记忆（带去重）"""
+        # 去重检查（基于URL）
+        if not skip_dedup:
+            content_hash = self.generate_id(image_url)
+            for v in self.db["vectors"]:
+                if v.get("id") == content_hash:
+                    print(f"⚠️ 图片已存在，跳过: {image_url[:50]}...")
+                    return None
+        
         vector = self.embed_image(image_url)
         if not vector:
             return None
@@ -175,12 +225,8 @@ class MultimodalMemory:
         print(f"✅ 添加图片记忆: {image_url[:50]}...")
         return record["id"]
     
-    def add_fusion(self, text, image_url=None, video_url=None, metadata=None):
-        """添加融合记忆"""
-        vector = self.embed_fusion(text, image_url, video_url)
-        if not vector:
-            return None
-        
+    def add_fusion(self, text, image_url=None, video_url=None, metadata=None, skip_dedup=False):
+        """添加融合记忆（带去重）"""
         content_parts = []
         if text:
             content_parts.append(text[:100])
@@ -188,6 +234,15 @@ class MultimodalMemory:
             content_parts.append("[图片]")
         if video_url:
             content_parts.append("[视频]")
+        
+        # 去重检查
+        if not skip_dedup and text and self.exists_by_content(text):
+            print(f"⚠️ 融合内容已存在，跳过: {text[:50]}...")
+            return None
+        
+        vector = self.embed_fusion(text, image_url, video_url)
+        if not vector:
+            return None
         
         record = {
             "id": self.generate_id("".join(content_parts)),

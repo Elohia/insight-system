@@ -5,6 +5,8 @@ OpenClaw 记忆写入器
 """
 
 import os
+import json
+import hashlib
 from datetime import datetime
 from pathlib import Path
 
@@ -15,6 +17,44 @@ class MemoryWriter:
         self.workspace = workspace
         self.memory_file = f"{workspace}/MEMORY.md"
         self.daily_memory_dir = f"{workspace}/memory"
+        self._cache = {}  # 缓存已写入的洞见hash
+        self._insights_hash_file = f"{workspace}/.openclaw/insights_hash.json"
+    
+    def _get_insight_hash(self, insight):
+        """生成洞见内容的hash"""
+        return hashlib.md5(insight.encode('utf-8')).hexdigest()
+    
+    def _load_hash_cache(self):
+        """加载已写入的洞见hash缓存"""
+        if os.path.exists(self._insights_hash_file):
+            try:
+                with open(self._insights_hash_file, 'r') as f:
+                    self._cache = json.load(f)
+            except:
+                self._cache = {}
+    
+    def _save_hash_cache(self):
+        """保存hash缓存"""
+        os.makedirs(os.path.dirname(self._insights_hash_file), exist_ok=True)
+        with open(self._insights_hash_file, 'w') as f:
+            json.dump(self._cache, f)
+    
+    def _is_duplicate(self, insight):
+        """检查洞见是否重复"""
+        insight_hash = self._get_insight_hash(insight)
+        
+        # 加载缓存
+        self._load_hash_cache()
+        
+        # 检查是否已存在
+        if insight_hash in self._cache:
+            return True
+        
+        # 标记为已写入
+        self._cache[insight_hash] = datetime.now().isoformat()
+        self._save_hash_cache()
+        
+        return False
     
     def ensure_directories(self):
         """确保记忆目录存在"""
@@ -22,13 +62,17 @@ class MemoryWriter:
     
     def write_insight(self, insight, tags=None, source="collision"):
         """
-        将洞见写入 MEMORY.md
+        将洞见写入 MEMORY.md（带去重）
         
         Args:
             insight: 洞见内容
             tags: 标签列表
             source: 来源类型（collision, reinforce, question, mutation）
         """
+        # 去重检查
+        if self._is_duplicate(insight):
+            print(f"⚠️ 洞见已存在，跳过写入: {insight[:50]}...")
+            return False
         self.ensure_directories()
         
         # 构建洞见条目
@@ -59,13 +103,17 @@ class MemoryWriter:
     
     def write_to_daily(self, insight, tags=None, source="collision"):
         """
-        将洞见写入今日记忆文件
+        将洞见写入今日记忆文件（带去重）
         
         Args:
             insight: 洞见内容
             tags: 标签列表
             source: 来源类型
         """
+        # 去重检查
+        if self._is_duplicate(insight):
+            print(f"⚠️ 洞见已存在，跳过写入: {insight[:50]}...")
+            return False
         self.ensure_directories()
         
         # 生成今日文件名
@@ -136,7 +184,7 @@ class MemoryWriter:
     
     def write_collision(self, fragment1, fragment2, insight, tags=None):
         """
-        将碰撞结果写入记忆文件
+        将碰撞结果写入记忆文件（带去重）
         
         Args:
             fragment1: 碎片1
@@ -144,6 +192,10 @@ class MemoryWriter:
             insight: 碰撞产生的洞见
             tags: 标签列表
         """
+        # 去重检查
+        if self._is_duplicate(insight):
+            print(f"⚠️ 碰撞洞见已存在，跳过写入: {insight[:50]}...")
+            return False
         self.ensure_directories()
         
         # 生成今日文件名
