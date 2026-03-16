@@ -453,83 +453,90 @@ class ThreeLayerMemory:
     # ==================== 工具思维提取方法 ====================
     
     def _extract_tool_index(self, scored_insights: List[tuple]) -> Dict[str, str]:
-        """从洞见中提取工具索引：场景 -> 推荐工具"""
-        # 预定义的工具映射（可根据洞见扩展）
-        tool_index = {
-            "代码问题": "搜索文档 → 调试工具 → 问用户详情",
-            "配置问题": "检查配置文件 → openclaw doctor → 查看日志",
-            "记忆查询": "模糊层快速检索 → 精确层深度搜索",
-            "洞见生成": "碰撞引擎 → 追问引擎 → 变异模式",
-            "数据去重": "dedup.py → 检查向量数据库",
-            "文件操作": "read_file → edit_file → write_file",
-            "外部信息": "web_search → web_fetch",
-            "图片处理": "read_image → generate_image",
-        }
+        """从洞见和工具使用记录中提取工具索引
         
-        # 从洞见中提取更多工具映射
-        for score, insight in scored_insights[:20]:
+        来源：
+        1. 工具使用记录（实际成功的案例）
+        2. 高质量洞见中的工具思维
+        """
+        tool_index = {}
+        
+        # 1. 从工具使用记录提取（优先，因为已验证）
+        try:
+            from tool_usage_recorder import get_recorder
+            recorder = get_recorder()
+            recorded_index = recorder.get_tool_index()
+            tool_index.update(recorded_index)
+        except ImportError:
+            pass
+        
+        # 2. 从洞见中提取已验证的工具映射
+        for score, insight in scored_insights:
             text = insight.get("insight_text", "") or insight.get("text", "")
-            tags = insight.get("tags", [])
             
-            # 检测工具相关洞见
-            if "工具" in text or "tool" in text.lower():
-                # 尝试提取场景-工具映射
-                if "搜索" in text:
-                    tool_index["信息获取"] = "web_search → 模糊层"
-                if "记忆" in text or "洞见" in text:
-                    tool_index["思考辅助"] = "洞见系统 → 三层记忆"
-                if "压缩" in text or "上下文" in text:
-                    tool_index["Token优化"] = "模糊层启动 → 按需加载精确层"
+            # 只从高质量洞见中提取
+            if score < 15:
+                continue
+            
+            # 检测场景-工具模式："X问题 → 用Y"
+            if "→" in text or "->" in text:
+                parts = text.replace("->", "→").split("→")
+                if len(parts) >= 2:
+                    scene = parts[0].strip()[:25]
+                    tool = "→".join(p.strip() for p in parts[1:])[:40]
+                    if scene and tool and scene not in tool_index:
+                        tool_index[scene] = tool
         
         return tool_index
     
     def _extract_decision_patterns(self, scored_insights: List[tuple]) -> List[str]:
-        """提取决策模式：问题类型 -> 解决策略"""
-        patterns = [
-            "不确定时 → 先搜索文档，再问用户",
-            "复杂问题 → 拆分子任务，并行处理",
-            "重复问题 → 去重 → 记录解决方案",
-            "新领域 → 快速学习 → 工具辅助 → 逐步深入",
-            "错误处理 → 记录日志 → 分析原因 → 修复验证",
-        ]
+        """提取决策模式：只从已验证的高质量洞见中提取
         
-        # 从高质量洞见中提取决策模式
-        for score, insight in scored_insights[:15]:
+        条件：有追问或回答（表示深度思考过）
+        """
+        patterns = []
+        
+        for score, insight in scored_insights:
+            # 只从深度思考过的洞见提取
+            if not (insight.get("follow_up_question") or insight.get("answer")):
+                continue
+            
+            text = insight.get("insight_text", "") or insight.get("text", "")
+            
+            # 检测决策模式关键词
+            if any(kw in text for kw in ["应该", "需要先", "策略", "原则", "关键是"]):
+                if len(text) < 70:
+                    patterns.append(text)
+        
+        return patterns[:6]
+    
+    def _extract_action_strategies(self, scored_insights: List[tuple]) -> List[str]:
+        """提取行动策略：从实践验证的洞见和工具记录中提取"""
+        strategies = []
+        
+        # 从工具使用记录获取成功模式
+        try:
+            from tool_usage_recorder import get_recorder
+            recorder = get_recorder()
+            strategies.extend(recorder.get_success_patterns()[:3])
+        except ImportError:
+            pass
+        
+        # 从洞见中补充
+        for score, insight in scored_insights:
             if score < 20:
                 continue
             
             text = insight.get("insight_text", "") or insight.get("text", "")
             
-            # 提取决策相关的洞见
-            if any(kw in text for kw in ["应该", "需要", "先", "再", "策略", "方法"]):
-                # 简化为决策模式
-                if len(text) < 80:
-                    patterns.append(text)
-        
-        return list(set(patterns))[:10]
-    
-    def _extract_action_strategies(self, scored_insights: List[tuple]) -> List[str]:
-        """提取行动策略：目标 -> 执行路径"""
-        strategies = [
-            "启动 → 只加载模糊层 (~300 tokens)",
-            "需要细节 → 按需加载精确层",
-            "需要历史 → 按需加载深度层",
-            "有新洞见 → 自动更新模糊层",
-        ]
-        
-        # 从洞见中提取行动策略
-        for score, insight in scored_insights:
-            text = insight.get("insight_text", "") or insight.get("text", "")
-            
-            # 检测行动导向的洞见
-            if any(kw in text for kw in ["运行", "执行", "调用", "加载", "触发"]):
-                if len(text) < 60:
+            if any(kw in text for kw in ["启动", "加载", "触发", "运行"]):
+                if len(text) < 50:
                     strategies.append(text)
         
-        return list(set(strategies))[:8]
+        return list(set(strategies))[:6]
     
     def _extract_strategies_from_soul(self, soul_text: str) -> List[str]:
-        """从 SOUL.md 提取策略"""
+        """从 SOUL.md 提取策略（用户的原始设定）"""
         strategies = []
         lines = soul_text.split("\n")
         
@@ -537,28 +544,29 @@ class ThreeLayerMemory:
             line = line.strip()
             # 提取核心原则
             if line.startswith("- **") and "**:" in line:
-                # 格式: - **原则**: 描述
                 principle = line.replace("- **", "").split("**:")[0]
                 desc = line.split("**:")[-1].strip() if "**:" in line else ""
-                if desc:
-                    strategies.append(f"{principle}: {desc[:50]}")
+                if desc and len(desc) < 50:
+                    strategies.append(f"{principle}: {desc}")
         
-        return strategies
+        return strategies[:3]  # 限制数量
     
     def _count_tool_usage(self, scored_insights: List[tuple]) -> Dict[str, int]:
-        """统计工具使用频率"""
+        """统计工具使用频率：从实际洞见中统计"""
         from collections import Counter
-        tool_keywords = [
-            "搜索", "文档", "调试", "配置", "记忆", "洞见",
-            "文件", "图片", "网络", "压缩", "去重"
-        ]
         
         usage = Counter()
         for score, insight in scored_insights:
             text = (insight.get("insight_text", "") or insight.get("text", "")).lower()
-            for kw in tool_keywords:
-                if kw in text:
-                    usage[kw] += 1
+            
+            # 只统计实际提到过的工具
+            tools = ["搜索", "文档", "调试", "配置", "记忆", "洞见",
+                     "文件", "图片", "网络", "压缩", "去重", "web_search",
+                     "read_file", "edit_file", "exec_shell"]
+            
+            for tool in tools:
+                if tool.lower() in text:
+                    usage[tool] += 1
         
         return dict(usage.most_common(10))
 
