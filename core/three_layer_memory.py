@@ -64,32 +64,36 @@ class ThreeLayerMemory:
         return self.generate_fuzzy_layer()
     
     def generate_fuzzy_layer(self) -> Dict[str, Any]:
-        """生成模糊层（从洞见和记忆压缩）"""
-        print("🔮 生成模糊层...")
+        """生成模糊层（工具思维导向）
+        
+        核心理念：弱模型 + 强工具链 + 工具思维 > 单一大模型
+        关键不是"知道多少"，而是"知道该用什么"
+        """
+        print("🔮 生成模糊层（工具思维模式）...")
         
         fuzzy = {
-            "version": "1.0",
+            "version": "2.0",  # 升级版本，工具思维导向
             "generated_at": datetime.now().isoformat(),
-            "identity_summary": "",      # 身份摘要
-            "key_insights": [],          # 关键洞见 (压缩后)
-            "active_goals": [],          # 活跃目标
-            "recent_themes": [],         # 最近主题
-            "personality_traits": [],    # 人格特质
+            
+            # === 工具思维核心 ===
+            "tool_index": {},           # 工具索引：场景 -> 推荐工具
+            "decision_patterns": [],    # 决策模式：问题类型 -> 解决策略
+            "action_strategies": [],    # 行动策略：目标 -> 执行路径
+            
+            # === 降维后的知识 ===
+            "key_insights": [],         # 关键洞见（精简）
+            "personality_traits": [],   # 人格特质（影响决策风格）
+            
+            # === 统计 ===
             "stats": {
                 "total_insights": 0,
                 "total_memories": 0,
-                "token_estimate": 0
+                "token_estimate": 0,
+                "tool_usage": {}        # 工具使用统计
             }
         }
         
-        # 1. 加载身份信息
-        identity_file = f"{MEMORY_DIR}/IDENTITY.md"
-        if os.path.exists(identity_file):
-            with open(identity_file, 'r') as f:
-                identity = f.read()
-            fuzzy["identity_summary"] = self._compress_text(identity, 150)
-        
-        # 2. 加载洞见状态
+        # 1. 加载洞见状态，提取工具思维
         if os.path.exists(STATE_FILE):
             with open(STATE_FILE, 'r') as f:
                 state = json.load(f)
@@ -106,13 +110,22 @@ class ThreeLayerMemory:
             
             scored_insights.sort(key=lambda x: x[0], reverse=True)
             
-            # 压缩洞见到模糊层
+            # === 提取工具索引 ===
+            fuzzy["tool_index"] = self._extract_tool_index(scored_insights)
+            
+            # === 提取决策模式 ===
+            fuzzy["decision_patterns"] = self._extract_decision_patterns(scored_insights)
+            
+            # === 提取行动策略 ===
+            fuzzy["action_strategies"] = self._extract_action_strategies(scored_insights)
+            
+            # 压缩洞见（只保留最关键的）
             for score, insight in scored_insights[:CONFIG["fuzzy_layer"]["max_insights"]]:
                 compressed = self._compress_insight(insight)
                 if compressed:
                     fuzzy["key_insights"].append(compressed)
             
-            # 提取人格特质
+            # 提取人格特质（影响决策风格）
             tags = []
             for i in insights:
                 tags.extend(i.get("tags", []))
@@ -120,23 +133,17 @@ class ThreeLayerMemory:
             tag_counts = Counter(tags)
             fuzzy["personality_traits"] = [t for t, c in tag_counts.most_common(10) if c > 1]
         
-        # 3. 加载活跃目标 (从 SOUL.md)
+        # 2. 加载 SOUL.md 提取决策偏好
         soul_file = f"{MEMORY_DIR}/SOUL.md"
         if os.path.exists(soul_file):
             with open(soul_file, 'r') as f:
                 soul = f.read()
-            # 提取目标相关内容
-            goals = self._extract_goals(soul)
-            fuzzy["active_goals"] = goals[:5]
+            # 提取行动策略
+            strategies = self._extract_strategies_from_soul(soul)
+            fuzzy["action_strategies"].extend(strategies[:3])
         
-        # 4. 统计最近主题
-        memory_files = sorted(Path(MEMORY_DIR).glob("*.md"))[-3:]
-        themes = []
-        for mf in memory_files:
-            content = mf.read_text()
-            themes.extend(self._extract_themes(content))
-        fuzzy["recent_themes"] = list(set(themes))[:10]
-        
+        # 3. 统计工具使用
+        fuzzy["stats"]["tool_usage"] = self._count_tool_usage(scored_insights if 'scored_insights' in dir() else [])
         # 5. 估算 token
         fuzzy["stats"]["token_estimate"] = self._estimate_tokens(fuzzy)
         
@@ -157,33 +164,43 @@ class ThreeLayerMemory:
         print(f"✅ 模糊层已保存 (估算 {fuzzy['stats']['token_estimate']} tokens)")
     
     def get_fuzzy_context(self) -> str:
-        """获取模糊层上下文（启动时调用）"""
+        """获取模糊层上下文（工具思维导向）
+        
+        输出：我知道该用什么，而不是我知道什么
+        """
         fuzzy = self.load_fuzzy_layer()
         
         lines = []
         
-        # 身份
-        if fuzzy.get("identity_summary"):
-            lines.append(f"### 身份概要\n{fuzzy['identity_summary']}")
+        # === 核心理念 ===
+        lines.append("### 🛠️ 工具思维")
+        lines.append("> 弱模型 + 强工具链 + 工具思维 > 单一大模型")
+        lines.append("> 关键不是'知道多少'，而是'知道该用什么'\n")
         
-        # 关键洞见
-        if fuzzy.get("key_insights"):
-            lines.append("### 核心洞见")
-            for i, insight in enumerate(fuzzy["key_insights"][:10], 1):
-                lines.append(f"{i}. {insight}")
+        # === 工具索引 ===
+        if fuzzy.get("tool_index"):
+            lines.append("### 📋 场景-工具索引")
+            for scene, tools in list(fuzzy["tool_index"].items())[:8]:
+                lines.append(f"- **{scene}** → {tools}")
         
-        # 活跃目标
-        if fuzzy.get("active_goals"):
-            lines.append("### 活跃目标")
-            for goal in fuzzy["active_goals"][:5]:
-                lines.append(f"- {goal}")
+        # === 决策模式 ===
+        if fuzzy.get("decision_patterns"):
+            lines.append("\n### 🎯 决策模式")
+            for pattern in fuzzy["decision_patterns"][:5]:
+                lines.append(f"- {pattern}")
         
-        # 人格特质
+        # === 行动策略 ===
+        if fuzzy.get("action_strategies"):
+            lines.append("\n### ⚡ 行动策略")
+            for strategy in fuzzy["action_strategies"][:5]:
+                lines.append(f"- {strategy}")
+        
+        # === 人格特质（影响决策风格）===
         if fuzzy.get("personality_traits"):
-            traits = ", ".join(fuzzy["personality_traits"][:8])
-            lines.append(f"### 人格特质\n{traits}")
+            traits = ", ".join(fuzzy["personality_traits"][:6])
+            lines.append(f"\n### 🎭 决策风格\n{traits}")
         
-        return "\n\n".join(lines)
+        return "\n".join(lines)
     
     def should_update_fuzzy(self) -> bool:
         """检查是否需要更新模糊层"""
@@ -417,14 +434,133 @@ class ThreeLayerMemory:
     
     def _estimate_tokens(self, fuzzy: Dict) -> int:
         """估算模糊层 token 数"""
-        text = fuzzy.get("identity_summary", "")
+        text = ""
+        # 工具索引
+        for scene, tools in fuzzy.get("tool_index", {}).items():
+            text += scene + str(tools)
+        # 决策模式
+        text += " ".join(fuzzy.get("decision_patterns", []))
+        # 行动策略
+        text += " ".join(fuzzy.get("action_strategies", []))
+        # 关键洞见
         text += " ".join(fuzzy.get("key_insights", []))
-        text += " ".join(fuzzy.get("active_goals", []))
-        text += " ".join(fuzzy.get("recent_themes", []))
+        # 人格特质
         text += " ".join(fuzzy.get("personality_traits", []))
         
-        # 简单估算：中文 1.5 字符/token，英文 4 字符/token
-        return int(len(text) / 2)
+        # 简单估算：中文 1.5 字符/token
+        return int(len(text) / 1.5)
+    
+    # ==================== 工具思维提取方法 ====================
+    
+    def _extract_tool_index(self, scored_insights: List[tuple]) -> Dict[str, str]:
+        """从洞见中提取工具索引：场景 -> 推荐工具"""
+        # 预定义的工具映射（可根据洞见扩展）
+        tool_index = {
+            "代码问题": "搜索文档 → 调试工具 → 问用户详情",
+            "配置问题": "检查配置文件 → openclaw doctor → 查看日志",
+            "记忆查询": "模糊层快速检索 → 精确层深度搜索",
+            "洞见生成": "碰撞引擎 → 追问引擎 → 变异模式",
+            "数据去重": "dedup.py → 检查向量数据库",
+            "文件操作": "read_file → edit_file → write_file",
+            "外部信息": "web_search → web_fetch",
+            "图片处理": "read_image → generate_image",
+        }
+        
+        # 从洞见中提取更多工具映射
+        for score, insight in scored_insights[:20]:
+            text = insight.get("insight_text", "") or insight.get("text", "")
+            tags = insight.get("tags", [])
+            
+            # 检测工具相关洞见
+            if "工具" in text or "tool" in text.lower():
+                # 尝试提取场景-工具映射
+                if "搜索" in text:
+                    tool_index["信息获取"] = "web_search → 模糊层"
+                if "记忆" in text or "洞见" in text:
+                    tool_index["思考辅助"] = "洞见系统 → 三层记忆"
+                if "压缩" in text or "上下文" in text:
+                    tool_index["Token优化"] = "模糊层启动 → 按需加载精确层"
+        
+        return tool_index
+    
+    def _extract_decision_patterns(self, scored_insights: List[tuple]) -> List[str]:
+        """提取决策模式：问题类型 -> 解决策略"""
+        patterns = [
+            "不确定时 → 先搜索文档，再问用户",
+            "复杂问题 → 拆分子任务，并行处理",
+            "重复问题 → 去重 → 记录解决方案",
+            "新领域 → 快速学习 → 工具辅助 → 逐步深入",
+            "错误处理 → 记录日志 → 分析原因 → 修复验证",
+        ]
+        
+        # 从高质量洞见中提取决策模式
+        for score, insight in scored_insights[:15]:
+            if score < 20:
+                continue
+            
+            text = insight.get("insight_text", "") or insight.get("text", "")
+            
+            # 提取决策相关的洞见
+            if any(kw in text for kw in ["应该", "需要", "先", "再", "策略", "方法"]):
+                # 简化为决策模式
+                if len(text) < 80:
+                    patterns.append(text)
+        
+        return list(set(patterns))[:10]
+    
+    def _extract_action_strategies(self, scored_insights: List[tuple]) -> List[str]:
+        """提取行动策略：目标 -> 执行路径"""
+        strategies = [
+            "启动 → 只加载模糊层 (~300 tokens)",
+            "需要细节 → 按需加载精确层",
+            "需要历史 → 按需加载深度层",
+            "有新洞见 → 自动更新模糊层",
+        ]
+        
+        # 从洞见中提取行动策略
+        for score, insight in scored_insights:
+            text = insight.get("insight_text", "") or insight.get("text", "")
+            
+            # 检测行动导向的洞见
+            if any(kw in text for kw in ["运行", "执行", "调用", "加载", "触发"]):
+                if len(text) < 60:
+                    strategies.append(text)
+        
+        return list(set(strategies))[:8]
+    
+    def _extract_strategies_from_soul(self, soul_text: str) -> List[str]:
+        """从 SOUL.md 提取策略"""
+        strategies = []
+        lines = soul_text.split("\n")
+        
+        for line in lines:
+            line = line.strip()
+            # 提取核心原则
+            if line.startswith("- **") and "**:" in line:
+                # 格式: - **原则**: 描述
+                principle = line.replace("- **", "").split("**:")[0]
+                desc = line.split("**:")[-1].strip() if "**:" in line else ""
+                if desc:
+                    strategies.append(f"{principle}: {desc[:50]}")
+        
+        return strategies
+    
+    def _count_tool_usage(self, scored_insights: List[tuple]) -> Dict[str, int]:
+        """统计工具使用频率"""
+        from collections import Counter
+        tool_keywords = [
+            "搜索", "文档", "调试", "配置", "记忆", "洞见",
+            "文件", "图片", "网络", "压缩", "去重"
+        ]
+        
+        usage = Counter()
+        for score, insight in scored_insights:
+            text = (insight.get("insight_text", "") or insight.get("text", "")).lower()
+            for kw in tool_keywords:
+                if kw in text:
+                    usage[kw] += 1
+        
+        return dict(usage.most_common(10))
 
 
 # ==================== 便捷函数 ====================
