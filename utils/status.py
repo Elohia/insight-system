@@ -6,10 +6,20 @@
 import json
 import os
 from datetime import datetime
+import sys
+from pathlib import Path
 
-WORKSPACE = "/workspace/projects/workspace"
-STATE_FILE = f"{WORKSPACE}/.openclaw/insight-state.json"
-MEMORY_DIR = f"{WORKSPACE}/memory"
+# 导入配置加载器
+script_dir = Path(__file__).parent
+sys.path.insert(0, str(script_dir))
+from config_loader import get_config, get_workspace, get_memory_dir, get_state_file
+
+# 获取配置
+_config = get_config()
+WORKSPACE = str(_config.workspace)
+STATE_FILE = str(_config.state_file)
+MEMORY_DIR = str(_config.memory_dir)
+
 
 def load_state():
     """加载系统状态"""

@@ -9,9 +9,17 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
+import sys
 
-WORKSPACE = "/workspace/projects/workspace"
-QUEUE_FILE = f"{WORKSPACE}/.openclaw/message-queue.json"
+# 导入配置加载器
+script_dir = Path(__file__).parent
+sys.path.insert(0, str(script_dir))
+from config_loader import get_config
+
+# 获取配置
+_config = get_config()
+QUEUE_FILE = str(_config.message_queue_file)
+
 
 def add_to_queue(message_text, source="feishu-dm"):
     """添加消息到队列"""

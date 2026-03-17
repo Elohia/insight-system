@@ -8,10 +8,15 @@ import os
 import json
 import re
 from datetime import datetime
+import sys
+
+# 导入配置加载器
+sys.path.insert(0, os.path.dirname(__file__))
+from utils.config_loader import get_config, get_workspace
+
+ZHIPU_API_KEY = os.getenv("ZHIPU_API_KEY", "")
 
 # 配置
-WORKSPACE = "/workspace/projects/workspace"
-ZHIPU_API_KEY = os.getenv("ZHIPU_API_KEY", "")
 
 # 洞见提取Prompt
 INSIGHT_PROMPT = """你是一个洞见提取器。从以下文本中提取【真正的洞见】。

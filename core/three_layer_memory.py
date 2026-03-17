@@ -17,11 +17,19 @@ import hashlib
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+import sys
 
-WORKSPACE = "/workspace/projects/workspace"
-MEMORY_DIR = f"{WORKSPACE}/memory"
-STATE_FILE = f"{WORKSPACE}/.openclaw/insight-state.json"
-FUZZY_LAYER_FILE = f"{WORKSPACE}/.openclaw/memory-fuzzy-layer.json"
+# 导入配置加载器
+sys.path.insert(0, os.path.dirname(__file__))
+from utils.config_loader import get_config, get_workspace, get_memory_dir, get_state_file
+
+# 获取配置
+_config = get_config()
+WORKSPACE = str(_config.workspace)
+MEMORY_DIR = str(_config.memory_dir)
+STATE_FILE = str(_config.state_file)
+FUZZY_LAYER_FILE = str(_config.fuzzy_layer_file)
+
 
 # 三层记忆配置
 CONFIG = {

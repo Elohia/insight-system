@@ -8,9 +8,16 @@ import os
 import json
 from datetime import datetime
 from pathlib import Path
+import sys
 
-WORKSPACE = "/workspace/projects/workspace"
-TOOL_USAGE_FILE = f"{WORKSPACE}/.openclaw/tool-usage-records.json"
+# 导入配置加载器
+sys.path.insert(0, os.path.dirname(__file__))
+from utils.config_loader import get_config
+
+# 获取配置
+_config = get_config()
+TOOL_USAGE_FILE = str(_config.tool_usage_file)
+
 
 
 class ToolUsageRecorder:

@@ -9,9 +9,16 @@ import sys
 import json
 import re
 from pathlib import Path
+import sys
 
-WORKSPACE = "/workspace/projects/workspace"
-STATE_FILE = f"{WORKSPACE}/.openclaw/insight-state.json"
+# 导入配置加载器
+sys.path.insert(0, os.path.dirname(__file__))
+from utils.config_loader import get_config, get_state_file
+
+# 获取配置
+_config = get_config()
+STATE_FILE = str(_config.state_file)
+
 
 # 导入三层记忆系统
 try:

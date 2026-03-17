@@ -8,10 +8,20 @@ import os
 import json
 from datetime import datetime
 from collections import Counter
+import sys
+from pathlib import Path
 
-WORKSPACE = "/workspace/projects/workspace"
-STATE_FILE = f"{WORKSPACE}/.openclaw/insight-state.json"
-VECTOR_DB = f"{WORKSPACE}/.openclaw/vector-db.json"
+# 导入配置加载器
+script_dir = Path(__file__).parent
+sys.path.insert(0, str(script_dir.parent))
+from utils.config_loader import get_config, get_workspace, get_state_file
+
+# 获取配置
+_config = get_config()
+WORKSPACE = str(_config.workspace)
+STATE_FILE = str(_config.state_file)
+
+VECTOR_DB = str(_config.vector_db)
 BACKUP_DIR = f"{WORKSPACE}/.openclaw/backup"
 
 def backup_file(filepath):
