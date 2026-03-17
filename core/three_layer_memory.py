@@ -28,7 +28,8 @@ CONFIG = {
     "fuzzy_layer": {
         "max_insights": 15,        # 模糊层最多保留15条洞见摘要
         "max_tokens": 800,         # 模糊层 token 上限
-        "update_interval_hours": 6  # 更新间隔
+        "update_interval_hours": 6,  # 更新间隔
+        "working_buffer_size": 5   # Working Buffer: 危险区最近5条消息
     },
     "precise_layer": {
         "max_insights": 50,        # 精确层最多50条
@@ -52,11 +53,15 @@ class ThreeLayerMemory:
     # ==================== 模糊层 (启动加载) ====================
     
     def load_fuzzy_layer(self) -> Dict[str, Any]:
-        """加载模糊层"""
+        """加载模糊层（含 Working Buffer）"""
         if os.path.exists(FUZZY_LAYER_FILE):
             try:
                 with open(FUZZY_LAYER_FILE, 'r') as f:
-                    return json.load(f)
+                    fuzzy = json.load(f)
+                # 确保有 working_buffer 字段
+                if "working_buffer" not in fuzzy:
+                    fuzzy["working_buffer"] = []
+                return fuzzy
             except:
                 pass
         
@@ -72,13 +77,16 @@ class ThreeLayerMemory:
         print("🔮 生成模糊层（工具思维模式）...")
         
         fuzzy = {
-            "version": "2.0",  # 升级版本，工具思维导向
+            "version": "2.1",  # 升级版本，增加 Working Buffer
             "generated_at": datetime.now().isoformat(),
             
             # === 工具思维核心 ===
             "tool_index": {},           # 工具索引：场景 -> 推荐工具
             "decision_patterns": [],    # 决策模式：问题类型 -> 解决策略
             "action_strategies": [],    # 行动策略：目标 -> 执行路径
+            
+            # === Working Buffer: 危险区捕获 ===
+            "working_buffer": [],       # 最近5条未压缩的原始消息
             
             # === 降维后的知识 ===
             "key_insights": [],         # 关键洞见（精简）
@@ -200,6 +208,14 @@ class ThreeLayerMemory:
             traits = ", ".join(fuzzy["personality_traits"][:6])
             lines.append(f"\n### 🎭 决策风格\n{traits}")
         
+        # === Working Buffer: 危险区未压缩内容 ===
+        if fuzzy.get("working_buffer"):
+            lines.append("\n### 📝 Working Buffer (未压缩)")
+            for item in fuzzy["working_buffer"][-3:]:  # 只显示最近3条
+                content = item.get("content", "")[:60]
+                if content:
+                    lines.append(f"- {content}...")
+        
         return "\n".join(lines)
     
     def should_update_fuzzy(self) -> bool:
@@ -252,6 +268,55 @@ class ThreeLayerMemory:
                 lines.append(f"  ❓ {follow_up}")
         
         return "\n".join(lines)
+    
+    # ==================== Working Buffer (危险区捕获) ====================
+    
+    def add_to_working_buffer(self, content: str, source: str = "conversation"):
+        """添加内容到 Working Buffer
+        
+        在上下文压缩前的危险区捕获关键信息
+        参考: proactive-agent Working Buffer Protocol
+        """
+        if not content or len(content.strip()) < 3:
+            return
+        
+        # 加载当前模糊层
+        fuzzy = self.load_fuzzy_layer()
+        
+        # 添加到 working buffer
+        item = {
+            "content": content[:500],  # 限制长度
+            "source": source,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        fuzzy["working_buffer"].append(item)
+        
+        # 保持最大数量
+        max_size = CONFIG["fuzzy_layer"]["working_buffer_size"]
+        if len(fuzzy["working_buffer"]) > max_size:
+            fuzzy["working_buffer"] = fuzzy["working_buffer"][-max_size:]
+        
+        # 保存
+        self.save_fuzzy_layer(fuzzy)
+    
+    def flush_working_buffer(self) -> list:
+        """将 Working Buffer 内容刷新到洞见系统
+        
+        在上下文压缩前调用，确保关键信息不丢失
+        返回: 刷新的内容列表
+        """
+        fuzzy = self.load_fuzzy_layer()
+        
+        items = fuzzy.get("working_buffer", [])
+        if not items:
+            return []
+        
+        # 清空 working buffer
+        fuzzy["working_buffer"] = []
+        self.save_fuzzy_layer(fuzzy)
+        
+        return items
     
     # ==================== 深度层 (按需加载) ====================
     

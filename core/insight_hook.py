@@ -142,6 +142,54 @@ def get_memory_by_query(query: str, layer: str = "precise") -> str:
     return ""
 
 
+def get_reverse_prompt() -> str:
+    """反向提示：主动提出用户没想到的问题
+    
+    参考: proactive-agent Reverse Prompting
+    不等待用户提问，主动提供价值
+    """
+    prompts = []
+    
+    # 1. 检查未回答的问题
+    questions = get_unanswered_questions()
+    if questions:
+        prompts.append(f"💭 上次留下的问题: {questions[0]['question']}")
+    
+    # 2. 检查 working buffer 中的待处理内容
+    if THREE_LAYER_AVAILABLE:
+        try:
+            memory = ThreeLayerMemory()
+            fuzzy = memory.load_fuzzy_layer()
+            buffer = fuzzy.get("working_buffer", [])
+            if buffer:
+                prompts.append(f"📝 Working Buffer 中有 {len(buffer)} 条未处理内容")
+        except:
+            pass
+    
+    # 3. 检查是否需要更新模糊层
+    if THREE_LAYER_AVAILABLE:
+        try:
+            memory = ThreeLayerMemory()
+            if memory.should_update_fuzzy():
+                prompts.append("🔄 模糊层已过期，建议更新")
+        except:
+            pass
+    
+    # 4. 从洞见中提取反向提示
+    if not prompts:
+        insights = get_recent_insights(3)
+        for i in insights:
+            follow_up = i.get("follow_up_question", "")
+            if follow_up:
+                prompts.append(f"💡 值得思考的问题: {follow_up}")
+                break
+    
+    if prompts:
+        return "\n\n🎯 反向提示:\n" + "\n".join(f"  {p}" for p in prompts[:2])
+    
+    return ""
+
+
 def main():
     """主函数 - 用于命令行调用
     
@@ -159,6 +207,12 @@ def main():
                 print(context)
             else:
                 print("⚠️ 模糊层为空")
+            
+            # 添加反向提示
+            reverse_prompt = get_reverse_prompt()
+            if reverse_prompt:
+                print(reverse_prompt)
+            
             return
         
         if "--precise" in sys.argv:
