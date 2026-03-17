@@ -21,7 +21,6 @@ WORKSPACE = str(_config.workspace)
 STATE_FILE = str(_config.state_file)
 MEMORY_DIR = str(_config.memory_dir)
 
-
 def load_insights():
     """加载洞见数据"""
     if os.path.exists(STATE_FILE):

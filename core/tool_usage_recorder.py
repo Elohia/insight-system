@@ -19,7 +19,6 @@ _config = get_config()
 TOOL_USAGE_FILE = str(_config.tool_usage_file)
 
 
-
 class ToolUsageRecorder:
     """工具使用记录器"""
     

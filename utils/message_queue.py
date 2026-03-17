@@ -20,7 +20,6 @@ from config_loader import get_config
 _config = get_config()
 QUEUE_FILE = str(_config.message_queue_file)
 
-
 def add_to_queue(message_text, source="feishu-dm"):
     """添加消息到队列"""
     queue = []

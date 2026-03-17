@@ -30,7 +30,6 @@ MEMORY_DIR = str(_config.memory_dir)
 STATE_FILE = str(_config.state_file)
 FUZZY_LAYER_FILE = str(_config.fuzzy_layer_file)
 
-
 # 三层记忆配置
 CONFIG = {
     "fuzzy_layer": {

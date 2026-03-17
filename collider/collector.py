@@ -10,7 +10,15 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-DB_PATH = os.path.expanduser("~/.openclaw/workspace/second-brain/memories.db")
+# 动态获取路径
+try:
+    from core.config import get_openclaw_home
+    OPENCLAW_HOME = get_openclaw_home()
+except ImportError:
+    # 回退到默认路径
+    OPENCLAW_HOME = os.path.expanduser("~/.openclaw")
+
+DB_PATH = os.path.join(OPENCLAW_HOME, "workspace", "second-brain", "memories.db")
 
 def init_db():
     """初始化数据库"""

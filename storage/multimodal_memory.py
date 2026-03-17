@@ -22,33 +22,14 @@ from utils.config_loader import get_config, get_workspace, get_memory_dir
 _config = get_config()
 WORKSPACE = str(_config.workspace)
 MEMORY_DIR = str(_config.memory_dir)
-from pathlib import Path
 
 # 阿里云百炼
-import os
-import json
-import hashlib
-import time
-from datetime import datetime
-import sys
-from pathlib import Path
-
-# 导入配置加载器
-script_dir = Path(__file__).parent
-sys.path.insert(0, str(script_dir.parent))
-from utils.config_loader import get_config, get_workspace, get_memory_dir
-
-# 获取配置
-_config = get_config()
-WORKSPACE = str(_config.workspace)
-MEMORY_DIR = str(_config.memory_dir)
-from pathlib import Path
-
 import dashscope
 from dashscope import MultiModalEmbedding
 
 # 配置
 VECTOR_DB = str(_config.vector_db)
+
 CONFIG = {
     "model": "qwen3-vl-embedding",  # 支持融合+独立向量
     "dimension": 1024,  # 向量维度

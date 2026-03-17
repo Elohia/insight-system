@@ -19,7 +19,6 @@ from utils.config_loader import get_config, get_state_file
 _config = get_config()
 STATE_FILE = str(_config.state_file)
 
-
 # 导入三层记忆系统
 try:
     from three_layer_memory import ThreeLayerMemory, get_startup_context, get_context_by_need
