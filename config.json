@@ -5,7 +5,7 @@
   
   "paths": {
     "_comment": "路径配置 - 修改为实际路径",
-    "workspace": "/workspace/projects/workspace",
+    "workspace": "/home/elohia/.openclaw/workspace",
     "memory_dir": "{workspace}/memory",
     "state_file": "{workspace}/.openclaw/insight-state.json",
     "vector_db": "{workspace}/.openclaw/vector-db.json",

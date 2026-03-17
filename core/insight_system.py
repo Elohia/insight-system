@@ -43,6 +43,8 @@ VECTOR_DB = str(_config.vector_db)
 CONFIG = {
     "threshold": _config.get("insight.threshold", 0.7),
     "max_tokens_per_summary": _config.get("insight.max_tokens_per_summary", 200),
+    "cache_size": _config.get("insight.cache_size", 50),
+    "forget_days": _config.get("insight.forget_days", 30),
 }
 
 

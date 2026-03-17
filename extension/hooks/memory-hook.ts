@@ -9,8 +9,12 @@ import sys
 import json
 from pathlib import Path
 
-# 添加洞见系统路径
-INSIGHT_SYSTEM_PATH = "/workspace/projects/extensions/insight-system"
+# 动态获取洞见系统路径
+# 优先使用环境变量，其次使用相对于当前文件的路径
+INSIGHT_SYSTEM_PATH = os.getenv(
+    "INSIGHT_SYSTEM_PATH",
+    str(Path(__file__).parent.parent.parent.parent)
+)
 sys.path.insert(0, f"{INSIGHT_SYSTEM_PATH}/core")
 
 from memory_server import OpenClawMemorySystem

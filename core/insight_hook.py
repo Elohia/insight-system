@@ -9,10 +9,14 @@ import sys
 import json
 import re
 from pathlib import Path
-import sys
+
+# 添加项目根目录到路径
+script_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(script_dir))
+sys.path.insert(0, str(script_dir / "utils"))
+sys.path.insert(0, str(script_dir / "core"))
 
 # 导入配置加载器
-sys.path.insert(0, os.path.dirname(__file__))
 from utils.config_loader import get_config, get_state_file
 
 # 获取配置
