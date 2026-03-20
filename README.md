@@ -1,6 +1,6 @@
 # 涟漪意识流 ContextEngine
 
-> OpenClaw 三层记忆插件 - 让 AI 拥有长期记忆
+> OpenClaw 三层记忆插件 - 完全取代内置记忆功能
 
 [![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](https://github.com/Elohia/insight-system)
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-2026.3.11-green.svg)](https://openclaw.ai)
@@ -9,7 +9,20 @@
 
 ## 一句话介绍
 
-**给 OpenClaw 加上三层记忆：模糊层（启动加载）、精确层（按需检索）、深度层（完整导出）**
+**完全取代 OpenClaw 内置记忆，提供三层记忆架构：模糊层（启动加载）、精确层（按需检索）、深度层（完整导出）**
+
+---
+
+## 与 OpenClaw 内置记忆的区别
+
+| 功能 | OpenClaw 内置 | insight-system |
+|------|--------------|----------------|
+| 存储格式 | Markdown 文件 | TOON 格式（省 67% token） |
+| 记忆层级 | 单层 | 三层（模糊/精确/深度） |
+| 检索方式 | 向量搜索 | 标签+温度+时间 |
+| 温度机制 | ❌ | ✅ 0-100 重要性评分 |
+| 共振机制 | ❌ | ✅ 自动关联相关记忆 |
+| token 计算 | 估算 | tiktoken 精确计算 |
 
 ---
 
@@ -33,12 +46,22 @@ unzip main.zip -d insight-system
 
 ```json
 {
+  "agents": {
+    "defaults": {
+      "compaction": {
+        "memoryFlush": {
+          "enabled": false
+        }
+      }
+    }
+  },
   "plugins": {
     "load": {
       "paths": ["/workspace/projects/extensions/insight-system"]
     },
     "allow": ["insight-system"],
     "slots": {
+      "memory": "none",
       "contextEngine": "insight-system"
     }
   },
@@ -48,6 +71,11 @@ unzip main.zip -d insight-system
   }
 }
 ```
+
+**重要**：以上配置会：
+- 禁用 OpenClaw 内置的 `memoryFlush`（不再写入 `memory/YYYY-MM-DD.md`）
+- 禁用 OpenClaw 内置的 `memory-core` 和 `memory-lancedb` 插件
+- 启用 `insight-system` 作为唯一的记忆系统
 
 ### 第 3 步：重启 OpenClaw
 
