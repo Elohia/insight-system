@@ -1,0 +1,71 @@
+{
+  "id": "insight-system",
+  "name": "涟漪意识流 ContextEngine",
+  "description": "三层记忆架构：模糊层（启动加载 ~250 tokens）+ 精确层（按需检索）+ 深度层（完整数据）。涟漪（显意识）+ 潜意识 = 完整意识流。",
+  "kind": "context-engine",
+  "version": "2.3.0",
+  "entry": "dist/index.js",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "是否启用涟漪意识流 ContextEngine"
+      },
+      "fuzzyLayerTokens": {
+        "type": "number",
+        "default": 300,
+        "description": "模糊层 token 预算"
+      },
+      "maxRipplesInContext": {
+        "type": "number",
+        "default": 5,
+        "description": "上下文中最多显示的涟漪数"
+      },
+      "temperatureRange": {
+        "type": "object",
+        "properties": {
+          "min": { "type": "number", "default": 0 },
+          "max": { "type": "number", "default": 100 }
+        },
+        "description": "水温范围"
+      },
+      "enableAutoCollect": {
+        "type": "boolean",
+        "default": true,
+        "description": "是否自动收集对话到涟漪"
+      },
+      "autoCollectMinTemp": {
+        "type": "number",
+        "default": 60,
+        "description": "自动收集的最低水温（高于此值才添加涟漪）"
+      },
+      "resonanceThreshold": {
+        "type": "number",
+        "default": 15,
+        "description": "共振温度阈值（±N°）"
+      }
+    }
+  },
+  "uiHints": {
+    "fuzzyLayerTokens": {
+      "label": "模糊层 Token 预算",
+      "placeholder": "300"
+    },
+    "maxRipplesInContext": {
+      "label": "最大涟漪显示数",
+      "placeholder": "5"
+    },
+    "autoCollectMinTemp": {
+      "label": "自动收集最低水温",
+      "placeholder": "60"
+    }
+  },
+  "provides": {
+    "slots": {
+      "contextEngine": "insight-system"
+    }
+  }
+}

@@ -1,11 +1,11 @@
 {
   "_comment": "洞见系统配置文件 - 修改此文件以适应你的环境",
   
-  "version": "2.2",
+  "version": "2.3",
   
   "paths": {
-    "_comment": "路径配置 - 修改为实际路径",
-    "workspace": "/home/elohia/.openclaw/workspace",
+    "_comment": "路径配置 - 支持 {workspace} 占位符和环境变量",
+    "workspace": "{OPENCLAW_STATE_DIR}/workspace",
     "memory_dir": "{workspace}/memory",
     "state_file": "{workspace}/.openclaw/insight-state.json",
     "vector_db": "{workspace}/.openclaw/vector-db.json",

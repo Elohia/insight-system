@@ -1,86 +1,87 @@
 ---
 name: insight-system
-description: "统一的洞见生成与管理系统。融合神经元洞见和碰撞引擎两种核心机制，支持多模态记忆、主动追问和碎片碰撞。使用方式：用户提到'洞见'、'记忆系统'、'碎片'、'碰撞'、'追问'、'思考'时使用。需要配置 ZHIPU_API_KEY 环境变量。"
-homepage: https://github.com/Elohia/second-brain
-metadata: { "openclaw": { "emoji": "🧠", "requires": { "env": ["ZHIPU_API_KEY"], "bins": ["python3"] } } }
+description: "涟漪意识流 ContextEngine - 三层记忆架构：模糊层（启动加载 ~250 tokens）+ 精确层（按需检索）+ 深度层（完整数据）。涟漪（显意识）+ 潜意识 = 完整意识流。"
+homepage: https://github.com/Elohia/insight-system
+metadata: { "openclaw": { "emoji": "🌊", "kind": "context-engine" } }
 ---
 
-# 洞见系统 (Insight System)
+# 涟漪意识流 ContextEngine
 
-统一的洞见生成与管理系统，融合神经元洞见和碰撞引擎。
+> 弱模型 + 强工具链 + 工具思维 > 单一大模型
 
-## 触发关键词
+## 一键配置
 
-- "洞见"
-- "记忆系统"
-- "碎片"
-- "碰撞"
-- "追问"
-- "思考"
-- "运行洞见系统"
-- "神经元"
+在 `openclaw.json` 中添加：
 
-## 当触发时
-
-执行以下命令：
-
-```bash
-# 运行神经元洞见系统
-cd /workspace/projects/extensions/insight-system && ./run.sh insight
-
-# 运行碰撞引擎
-cd /workspace/projects/extensions/insight-system && ./run.sh collide
-
-# 查看状态
-cd /workspace/projects/extensions/insight-system && ./run.sh status
+```json
+{
+  "plugins": {
+    "slots": {
+      "contextEngine": "insight-system"
+    }
+  },
+  "pluginsDir": ["./extensions"]
+}
 ```
 
-## 核心功能
+## 三层记忆架构
 
-| 引擎 | 功能 | 触发条件 |
-|------|------|----------|
-| 🧠 神经元洞见 | 自动从记忆碎片中提取洞见 | 每次运行 |
-| ⚡ 碰撞引擎 | 强制不相关碎片"对话"，产生意外洞见 | 每次运行 |
-| ❓ 追问引擎 | 系统主动提问，引发深度反思 | 积累 10+ 碎片 |
-| 🧬 变异模式 | 低概率(5%)生成假设片段验证 | 5% 概率 |
+| 层级 | 触发时机 | 内容 | Token |
+|------|---------|------|-------|
+| 🌫️ 模糊层 | 启动加载 | 水面状态 + 热门标签 + 最近涟漪 + 反向提示 | **~250** |
+| 🎯 精确层 | 按需检索 | 相关涟漪详情 + 共振分析 | 按需 |
+| 📚 深度层 | 深度分析 | 完整涟漪池 + 潜意识快照 | 按需 |
 
-## 使用方式
+## 七个钩子
 
-### 1. 神经元洞见模式（自动洞察）
+| 钩子 | 时机 | 功能 |
+|------|------|------|
+| `bootstrap()` | 引擎初始化 | 加载涟漪数据、获取水面状态 |
+| `ingest(message)` | 消息摄入 | 记录每条消息 |
+| `assemble(budget)` | 组装上下文 | 注入模糊层 + 选择历史消息 |
+| `compact()` | 压缩上下文 | 保留 30% + 自动收集涟漪 |
+| `afterTurn(turn)` | 对话结束 | 自动收集高价值对话 |
+| `prepareSubagentSpawn()` | 子 agent 准备 | 精确检索相关涟漪 |
+| `onSubagentEnded()` | 子 agent 结束 | 收集重要结果 |
 
-```bash
-cd /workspace/projects/extensions/insight-system
-./run.sh insight
+## 配置选项
+
+```json
+{
+  "fuzzyLayerTokens": 300,
+  "maxRipplesInContext": 5,
+  "autoCollectMinTemp": 60,
+  "resonanceThreshold": 15
+}
 ```
 
-特点：
-- 自动收集记忆碎片
-- 支持多模态（文本、图片、视频）
-- 向量化存储
-- 快速检索
+## 核心概念
 
-### 2. 碰撞引擎模式（深度反思）
+| 概念 | 说明 |
+|------|------|
+| 🌊 涟漪 | 水面上的波动（显意识），带水温、标签 |
+| 🧠 潜意识 | 静默记录水面状态 |
+| ⚡ 共振 | 涟漪叠加产生洞察（温度±15 + 标签重叠） |
 
-```bash
-cd /workspace/projects/extensions/insight-system
-./run.sh collide
-```
-
-特点：
-- 碎片碰撞产生洞见
-- 主动追问引发思考
-- 变异模式探索可能
-
-## 配置
-
-在 `collider/.env` 中设置智谱 API Key：
+## 命令行工具
 
 ```bash
-export ZHIPU_API_KEY="your-key"
+# 添加涟漪
+./run.sh ripple "发现AI的连续性是幻觉" --temp 65 --tags AI,意识
+
+# 查看模糊层
+./run.sh fuzzy
+
+# 精确检索
+./run.sh precise AI
+
+# 系统状态
+./run.sh status
 ```
 
-获取地址：https://open.bigmodel.cn
+## 核心理念
 
-## 口号
-
-> 不做更好的搜索引擎，要做"信息炼金术"
+> **模糊而精准**
+> - 启动时只加载模糊层，极简概要
+> - 按需加载精确层，精准检索
+> - 深度层用于复盘和分析

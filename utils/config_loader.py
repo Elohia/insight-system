@@ -39,9 +39,25 @@ class Config:
     
     def _default_config(self) -> Dict[str, Any]:
         """默认配置"""
-        workspace = "/workspace/projects/workspace"
+        # 优先使用环境变量
+        workspace = os.environ.get("OPENCLAW_STATE_DIR", "/workspace/projects")
+        workspace = f"{workspace}/workspace"
+        
+        # 如果环境变量未设置，尝试从 openclaw.json 读取
+        if not os.environ.get("OPENCLAW_STATE_DIR"):
+            openclaw_config_path = Path(workspace).parent / "openclaw.json"
+            if openclaw_config_path.exists():
+                try:
+                    with open(openclaw_config_path, 'r', encoding='utf-8') as f:
+                        openclaw_config = json.load(f)
+                        # 检查 env 中的 INSIGHT_DATA_DIR
+                        if "env" in openclaw_config and "INSIGHT_DATA_DIR" in openclaw_config["env"]:
+                            workspace = openclaw_config["env"]["INSIGHT_DATA_DIR"]
+                except Exception:
+                    pass
+        
         return {
-            "version": "2.2",
+            "version": "2.3",
             "paths": {
                 "workspace": workspace,
                 "memory_dir": f"{workspace}/memory",
@@ -70,13 +86,23 @@ class Config:
         return value
     
     def get_path(self, key: str) -> Path:
-        """获取路径配置，自动解析 {workspace} 占位符"""
+        """获取路径配置，自动解析 {workspace} 占位符和环境变量"""
         path_str = self.get(f"paths.{key}", "")
         if not path_str:
             raise ValueError(f"路径配置缺失: paths.{key}")
         
-        # 解析占位符
-        workspace = self.get("paths.workspace", "/workspace/projects/workspace")
+        # 先解析环境变量占位符 {ENV_VAR}
+        import re
+        env_pattern = r'\{([A-Z_][A-Z0-9_]*)\}'
+        def replace_env(match):
+            env_var = match.group(1)
+            return os.environ.get(env_var, "")
+        path_str = re.sub(env_pattern, replace_env, path_str)
+        
+        # 再解析 {workspace} 占位符
+        workspace = str(self.get("paths.workspace", "/workspace/projects/workspace"))
+        # 如果 workspace 本身包含环境变量，先解析
+        workspace = re.sub(env_pattern, replace_env, workspace)
         path_str = path_str.replace("{workspace}", workspace)
         
         return Path(path_str)
