@@ -59,7 +59,8 @@ class ThreeLayerMemory:
         # 1. 水面状态（潜意识摘要）
         if self.subconscious:
             latest = self.subconscious[-1]
-            lines.append(f"\n## 水面状态 ({latest.timestamp[:10]})")
+            ts_str = str(latest.timestamp)[:10]
+            lines.append(f"\n## 水面状态 ({ts_str})")
             lines.append(f"涟漪 {latest.ripple_count} | 共振 {latest.resonance_count}")
             lines.append(f"温度 {latest.temp_avg:.0f} | 标签 {', '.join(latest.top_tags[:3])}")
         
