@@ -377,12 +377,13 @@ class NeuronInsight:
     
     def forget_old(self):
         """遗忘机制"""
-        if len(self.state["connections"]) > CONFIG["cache_size"]:
+        cache_size = CONFIG.get("insight", {}).get("cache_size", 50)
+        if len(self.state["connections"]) > cache_size:
             sorted_conn = sorted(
                 self.state["connections"].items(),
                 key=lambda x: x[1]
             )
-            to_remove = sorted_conn[:len(sorted_conn) - CONFIG["cache_size"]]
+            to_remove = sorted_conn[:len(sorted_conn) - cache_size]
             for k, _ in to_remove:
                 del self.state["connections"][k]
     

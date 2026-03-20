@@ -48,14 +48,9 @@ class InsightExtractor:
         self.api_key = ZHIPU_API_KEY or self.load_api_key()
     
     def load_api_key(self):
-        """从.env文件加载API Key"""
-        env_file = f"{WORKSPACE}/../extensions/insight-system/.env"
-        if os.path.exists(env_file):
-            with open(env_file) as f:
-                for line in f:
-                    if line.startswith("ZHIPU_API_KEY="):
-                        return line.strip().split("=", 1)[1]
-        return ""
+        """从环境变量加载API Key（已废弃，保留兼容性）"""
+        # 环境变量优先，由 openclaw.json env 字段提供
+        return os.getenv("ZHIPU_API_KEY", "")
     
     def extract(self, text):
         """使用规则提取洞见（暂时禁用LLM以提升速度）"""

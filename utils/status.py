@@ -54,7 +54,7 @@ def main():
     insights = state.get('insights', [])
     connections = state.get('connections', [])
     run_count = state.get('run_count', 0)
-    last_run = state.get('last_run')
+    last_run = state.get('last_processed') or state.get('last_run')
     memory_files = count_memory_files()
     
     print("╔════════════════════════════════════╗")
