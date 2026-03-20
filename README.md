@@ -138,9 +138,22 @@ cd /workspace/projects/extensions/insight-system
 
 ## 配置说明
 
-安装脚本会自动配置以下内容：
+### 1. AGENTS.md 配置
 
-### 1. 禁用内置记忆
+更新 `workspace/AGENTS.md` 的 Every Session 部分：
+
+```markdown
+## Every Session
+
+Before doing anything:
+1. Read `SOUL.md` — who you are
+2. Read `USER.md` — who you're helping
+3. **模糊层自动加载** — insight-system ContextEngine 会自动注入记忆概要
+```
+
+完整示例见 [AGENTS.md 示例](https://github.com/Elohia/insight-system/blob/main/examples/AGENTS.md)。
+
+### 2. 禁用内置记忆
 
 ```json
 {
