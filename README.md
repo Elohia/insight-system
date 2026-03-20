@@ -27,7 +27,25 @@ openclaw plugins list | grep insight
 # 应该看到: insight-system | loaded
 ```
 
-> ⚠️ **注意**：安装脚本会自动备份并移除 OpenClaw 旧记忆文件（`workspace/memory/` 和 `workspace/MEMORY.md`），备份到 `/tmp/openclaw-memory-backup-*`。这是为了确保 OpenClaw 只使用 insight-system 的记忆系统。
+### 📦 自动迁移旧记忆
+
+安装脚本会自动检测并迁移 OpenClaw 旧记忆：
+
+```
+workspace/memory/*.md  →  转换为涟漪  →  ripples.toon
+workspace/MEMORY.md    →  转换为涟漪  →  ripples.toon
+```
+
+迁移时会：
+- 解析 Markdown 标题和段落
+- 自动估算温度（根据关键词）
+- 自动提取标签
+- 保留时间戳
+
+> ⚠️ **注意**：旧文件迁移后会保留，可手动删除：
+> ```bash
+> rm -rf workspace/memory workspace/MEMORY.md
+> ```
 
 ### 手动安装（如果脚本失败）
 

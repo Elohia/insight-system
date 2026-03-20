@@ -22,7 +22,7 @@ class Ripple:
         """
         tags_str = ','.join(self.tags) if self.tags else ''
         res_str = ','.join(self.resonances) if self.resonances else ''
-        ts = f"{self.timestamp:.0f}"
+        ts = f"{self.timestamp:.0f}" if self.timestamp else f"{time.time():.0f}"
         return f"{self.temp:.0f}|{ts}|{tags_str}|{res_str}|{self.content}"
     
     @classmethod
