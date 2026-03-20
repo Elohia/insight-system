@@ -27,6 +27,8 @@ openclaw plugins list | grep insight
 # 应该看到: insight-system | loaded
 ```
 
+> ⚠️ **注意**：安装脚本会自动备份并移除 OpenClaw 旧记忆文件（`workspace/memory/` 和 `workspace/MEMORY.md`），备份到 `/tmp/openclaw-memory-backup-*`。这是为了确保 OpenClaw 只使用 insight-system 的记忆系统。
+
 ### 手动安装（如果脚本失败）
 
 <details>
