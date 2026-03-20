@@ -11,13 +11,23 @@ class RippleContextEngine {
       fuzzyLayerTokens: 300,
       autoCollectMinTemp: 60,
       insightPath: process.env.INSIGHT_SYSTEM_PATH || '/workspace/projects/extensions/insight-system',
+      // 控制是否在会话启动时加载模糊层
+      autoLoadFuzzy: process.env.AUTO_LOAD_FUZZY !== 'false',
+      // 控制是否自动收集对话
+      autoCollect: process.env.AUTO_COLLECT !== 'false',
       ...config
     };
     this.messages = [];
+    this.initialized = false;
   }
 
   async bootstrap() {
-    console.log('🌊 RippleContextEngine initialized');
+    this.initialized = true;
+    if (this.config.autoLoadFuzzy) {
+      console.log('🌊 RippleContextEngine initialized with fuzzy layer');
+    } else {
+      console.log('🌊 RippleContextEngine initialized (fuzzy layer disabled)');
+    }
   }
 
   async ingest(message) {
@@ -25,7 +35,12 @@ class RippleContextEngine {
   }
 
   async assemble(budget) {
-    const fuzzy = this.getFuzzyLayer();
+    // 只有开启 autoLoadFuzzy 时才加载模糊层
+    let fuzzy = '';
+    if (this.config.autoLoadFuzzy) {
+      fuzzy = this.getFuzzyLayer();
+    }
+    
     const history = this.messages.slice(-20).slice(0, Math.floor(budget.soft / 100));
     
     return {
@@ -41,7 +56,9 @@ class RippleContextEngine {
   }
 
   async afterTurn(turn) {
-    // 自动收集高价值对话
+    // 只有开启 autoCollect 时才自动收集
+    if (!this.config.autoCollect) return;
+    
     if (turn.assistantMessage?.content) {
       const temp = this.estimateTemp(turn.assistantMessage.content);
       if (temp >= this.config.autoCollectMinTemp) {
@@ -55,6 +72,8 @@ class RippleContextEngine {
   }
 
   async onSubagentEnded(result) {
+    if (!this.config.autoCollect) return;
+    
     if (result.success) {
       const temp = this.estimateTemp(result.output);
       if (temp >= this.config.autoCollectMinTemp) {

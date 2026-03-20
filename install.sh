@@ -70,7 +70,21 @@ openclaw config set env.AUTO_COLLECT_MIN_TEMP "60" 2>/dev/null || true
 
 echo "✓ 配置已应用"
 
-# 6. 验证
+# 6. 清理旧记忆文件
+echo ""
+echo "→ 清理 OpenClaw 旧记忆文件..."
+WORKSPACE="${WORKSPACE:-/workspace/projects/workspace}"
+if [ -d "$WORKSPACE/memory" ] || [ -f "$WORKSPACE/MEMORY.md" ]; then
+    BACKUP_DIR="/tmp/openclaw-memory-backup-$(date +%Y%m%d%H%M%S)"
+    mkdir -p "$BACKUP_DIR"
+    [ -d "$WORKSPACE/memory" ] && mv "$WORKSPACE/memory" "$BACKUP_DIR/"
+    [ -f "$WORKSPACE/MEMORY.md" ] && mv "$WORKSPACE/MEMORY.md" "$BACKUP_DIR/"
+    echo "✓ 已备份旧记忆到: $BACKUP_DIR"
+else
+    echo "✓ 无需清理"
+fi
+
+# 7. 验证
 echo ""
 echo "→ 验证配置..."
 if openclaw config validate 2>&1 | grep -q "Config valid"; then
@@ -79,7 +93,7 @@ else
     echo "⚠ 配置验证失败，请检查 openclaw.json"
 fi
 
-# 7. 测试插件
+# 8. 测试插件
 echo ""
 echo "→ 测试插件..."
 cd "$INSIGHT_PATH"
@@ -91,10 +105,12 @@ else
     echo "⚠ 插件测试失败，请检查 Python 环境"
 fi
 
-# 8. 完成
+# 9. 完成
 echo ""
 echo "======================================"
 echo "✅ 安装完成！"
+echo ""
+echo "⚠️  旧记忆文件已备份到 /tmp/openclaw-memory-backup-*"
 echo ""
 echo "重启 OpenClaw 生效："
 echo "  ./scripts/restart.sh"
