@@ -1,179 +1,41 @@
 """
-洞见系统配置管理模块
-支持从配置文件动态加载路径和其他配置
+配置加载器 - 统一使用环境变量
 """
-import json
 import os
-from pathlib import Path
-from typing import Dict, Any, Optional
-
-# 默认配置路径
-DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.json"
+from typing import Optional
 
 
 class Config:
-    """配置管理类 - 单例模式"""
-    _instance: Optional['Config'] = None
-    _config: Dict[str, Any] = {}
+    """配置管理"""
     
-    def __new__(cls, config_path: Optional[str] = None):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._load(config_path)
-        return cls._instance
-    
-    def _load(self, config_path: Optional[str] = None):
-        """加载配置文件"""
-        path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
+    def __init__(self):
+        # 从环境变量读取配置
+        self.data_dir = os.environ.get(
+            'INSIGHT_SYSTEM_PATH',
+            '/workspace/projects/extensions/insight-system'
+        )
         
-        if path.exists():
-            with open(path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                # 移除注释行
-                lines = [line for line in content.split('\n') if not line.strip().startswith('//') and not line.strip().startswith('#')]
-                clean_content = '\n'.join(lines)
-                self._config = json.loads(clean_content)
-        else:
-            print(f"[Config] 配置文件不存在: {path}，使用默认配置")
-            self._config = self._default_config()
-    
-    def _default_config(self) -> Dict[str, Any]:
-        """默认配置"""
-        # 优先使用环境变量
-        workspace = os.environ.get("OPENCLAW_STATE_DIR", "/workspace/projects")
-        workspace = f"{workspace}/workspace"
+        self.fuzzy_budget = int(os.environ.get('FUZZY_BUDGET', '250'))
+        self.auto_collect_min_temp = int(os.environ.get('AUTO_COLLECT_MIN_TEMP', '60'))
         
-        # 如果环境变量未设置，尝试从 openclaw.json 读取
-        if not os.environ.get("OPENCLAW_STATE_DIR"):
-            openclaw_config_path = Path(workspace).parent / "openclaw.json"
-            if openclaw_config_path.exists():
-                try:
-                    with open(openclaw_config_path, 'r', encoding='utf-8') as f:
-                        openclaw_config = json.load(f)
-                        # 检查 env 中的 INSIGHT_DATA_DIR
-                        if "env" in openclaw_config and "INSIGHT_DATA_DIR" in openclaw_config["env"]:
-                            workspace = openclaw_config["env"]["INSIGHT_DATA_DIR"]
-                except Exception:
-                    pass
-        
-        return {
-            "version": "2.3",
-            "paths": {
-                "workspace": workspace,
-                "memory_dir": f"{workspace}/memory",
-                "state_file": f"{workspace}/.openclaw/insight-state.json",
-                "vector_db": f"{workspace}/.openclaw/vector-db.json",
-                "fuzzy_layer": f"{workspace}/.openclaw/memory-fuzzy-layer.json",
-                "message_queue": f"{workspace}/.openclaw/message-queue.json",
-                "tool_usage": f"{workspace}/.openclaw/tool-usage-records.json"
-            },
-            "fuzzy_layer": {"max_insights": 15, "max_tokens": 800},
-            "precise_layer": {"max_insights": 50, "search_top_k": 10},
-            "deep_layer": {"max_days": 7, "max_entries": 100},
-            "multimodal": {"model": "qwen3-vl-embedding", "dimension": 1024},
-            "insight": {"threshold": 0.7, "max_tokens_per_summary": 200}
-        }
+        # 共振参数
+        self.resonance_temp_threshold = int(os.environ.get('RESONANCE_TEMP_THRESHOLD', '15'))
+        self.resonance_time_threshold = float(os.environ.get('RESONANCE_TIME_THRESHOLD', '86400'))
     
-    def get(self, key: str, default: Any = None) -> Any:
-        """获取配置值，支持点号分隔的嵌套键"""
-        keys = key.split('.')
-        value = self._config
-        for k in keys:
-            if isinstance(value, dict) and k in value:
-                value = value[k]
-            else:
-                return default
-        return value
+    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        """获取配置"""
+        return os.environ.get(key.upper(), default)
     
-    def get_path(self, key: str) -> Path:
-        """获取路径配置，自动解析 {workspace} 占位符和环境变量"""
-        path_str = self.get(f"paths.{key}", "")
-        if not path_str:
-            raise ValueError(f"路径配置缺失: paths.{key}")
-        
-        # 先解析环境变量占位符 {ENV_VAR}
-        import re
-        env_pattern = r'\{([A-Z_][A-Z0-9_]*)\}'
-        def replace_env(match):
-            env_var = match.group(1)
-            return os.environ.get(env_var, "")
-        path_str = re.sub(env_pattern, replace_env, path_str)
-        
-        # 再解析 {workspace} 占位符
-        workspace = str(self.get("paths.workspace", "/workspace/projects/workspace"))
-        # 如果 workspace 本身包含环境变量，先解析
-        workspace = re.sub(env_pattern, replace_env, workspace)
-        path_str = path_str.replace("{workspace}", workspace)
-        
-        return Path(path_str)
+    def get_int(self, key: str, default: int = 0) -> int:
+        """获取整数配置"""
+        try:
+            return int(os.environ.get(key.upper(), str(default)))
+        except ValueError:
+            return default
     
-    @property
-    def workspace(self) -> Path:
-        """工作空间路径"""
-        return self.get_path("workspace")
-    
-    @property
-    def memory_dir(self) -> Path:
-        """记忆目录路径"""
-        return self.get_path("memory_dir")
-    
-    @property
-    def state_file(self) -> Path:
-        """状态文件路径"""
-        return self.get_path("state_file")
-    
-    @property
-    def vector_db(self) -> Path:
-        """向量数据库路径"""
-        return self.get_path("vector_db")
-    
-    @property
-    def fuzzy_layer_file(self) -> Path:
-        """模糊层文件路径"""
-        return self.get_path("fuzzy_layer")
-    
-    @property
-    def message_queue_file(self) -> Path:
-        """消息队列文件路径"""
-        return self.get_path("message_queue")
-    
-    @property
-    def tool_usage_file(self) -> Path:
-        """工具使用记录文件路径"""
-        return self.get_path("tool_usage")
-    
-    def reload(self, config_path: Optional[str] = None):
-        """重新加载配置"""
-        self._load(config_path)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """导出完整配置字典"""
-        return self._config.copy()
-
-
-# 全局配置实例
-_config_instance: Optional[Config] = None
-
-
-def get_config(config_path: Optional[str] = None) -> Config:
-    """获取配置实例（工厂函数）"""
-    global _config_instance
-    if _config_instance is None or config_path:
-        _config_instance = Config(config_path)
-    return _config_instance
-
-
-# 便捷函数 - 保持向后兼容
-def get_workspace() -> str:
-    """获取工作空间路径（兼容旧代码）"""
-    return str(get_config().workspace)
-
-
-def get_memory_dir() -> str:
-    """获取记忆目录路径（兼容旧代码）"""
-    return str(get_config().memory_dir)
-
-
-def get_state_file() -> str:
-    """获取状态文件路径（兼容旧代码）"""
-    return str(get_config().state_file)
+    def get_float(self, key: str, default: float = 0.0) -> float:
+        """获取浮点数配置"""
+        try:
+            return float(os.environ.get(key.upper(), str(default)))
+        except ValueError:
+            return default

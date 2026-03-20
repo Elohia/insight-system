@@ -1,12 +1,8 @@
-# 涟漪意识流 ContextEngine
+# 涟漪意识流 ContextEngine v2.3.0
 
-> 弱模型 + 强工具链 + 工具思维 > 单一大模型
+## 快速开始
 
-**OpenClaw ContextEngine 插件 - 三层记忆架构**
-
----
-
-## 一键配置
+### 1. 配置 OpenClaw
 
 在 `openclaw.json` 中添加：
 
@@ -17,102 +13,95 @@
       "contextEngine": "insight-system"
     }
   },
-  "pluginsDir": ["./extensions"]
+  "env": {
+    "INSIGHT_SYSTEM_PATH": "/workspace/projects/extensions/insight-system",
+    "FUZZY_BUDGET": "250",
+    "AUTO_COLLECT_MIN_TEMP": "60"
+  }
 }
 ```
 
----
-
-## 三层记忆架构
-
-| 层级 | 触发时机 | 内容 | Token |
-|------|---------|------|-------|
-| 🌫️ 模糊层 | 启动加载 | 水面状态 + 热门标签 + 最近涟漪 + 反向提示 | **~250** |
-| 🎯 精确层 | 按需检索 | 相关涟漪详情 + 共振分析 | 按需 |
-| 📚 深度层 | 深度分析 | 完整涟漪池 + 潜意识快照 | 按需 |
-
----
-
-## 核心概念
-
-| 概念 | 说明 |
-|------|------|
-| 🌊 涟漪 | 水面上的波动（显意识），带水温、标签 |
-| 🧠 潜意识 | 静默记录水面状态 |
-| ⚡ 共振 | 涟漪叠加产生洞察（温度±15 + 标签重叠） |
-
----
-
-## 安装
+### 2. 使用命令
 
 ```bash
-# 克隆到 extensions 目录
-git clone https://github.com/Elohia/insight-system.git extensions/insight-system
-
-# 安装依赖
 cd extensions/insight-system
-npm install
 
-# 构建
-npm run build
-```
-
----
-
-## 命令行工具
-
-```bash
 # 添加涟漪
-./run.sh ripple "发现AI的连续性是幻觉" --temp 65 --tags AI,意识
+./run.sh ripple "洞见内容" --temp 75 --tags 洞见,创新
 
 # 查看模糊层
 ./run.sh fuzzy
 
 # 精确检索
-./run.sh precise AI
+./run.sh precise 关键词
 
 # 系统状态
 ./run.sh status
 ```
 
----
+## 三层记忆架构
 
-## 配置选项
+| 层级 | Token | 用途 | 加载时机 |
+|------|-------|------|----------|
+| 模糊层 | ~250 | 极简概要 | 启动加载 |
+| 精确层 | 按需 | 条件检索 | 运行时检索 |
+| 深度层 | 完整 | 数据导出 | 手动导出 |
 
-```json
-{
-  "fuzzyLayerTokens": 300,
-  "maxRipplesInContext": 5,
-  "autoCollectMinTemp": 60,
-  "resonanceThreshold": 15
-}
+## 核心概念
+
+- **涟漪 (Ripple)**: 显意识片段，带温度(0-100)、标签
+- **潜意识 (Subconscious)**: 水面状态快照
+- **共振**: 涟漪叠加，条件：温度±15 + 标签重叠 + 时间24h
+
+## TOON 格式
+
+相比 JSON 减少 ~67% token：
+
+```
+# JSON 格式 (约 150 tokens)
+{"content":"洞见内容","temp":75,"tags":["洞见","创新"],"timestamp":1774011073}
+
+# TOON 格式 (约 50 tokens)
+75|1774011073|洞见,创新|洞见内容
 ```
 
----
+## 文件结构
 
-## 七个钩子
+```
+insight-system/
+├── core/
+│   ├── ripple.py          # 涟漪模型
+│   ├── subconscious.py    # 潜意识模型
+│   └── three_layer_memory.py  # 三层记忆管理
+├── utils/
+│   ├── toon_format.py     # TOON 格式工具
+│   └── config_loader.py   # 配置加载器
+├── index.js               # ContextEngine 入口
+├── openclaw.plugin.json   # 插件配置
+├── run.sh                 # 命令行工具
+└── README.md              # 说明文档
+```
 
-| 钩子 | 时机 | 功能 |
-|------|------|------|
-| `bootstrap()` | 引擎初始化 | 加载涟漪数据、获取水面状态 |
-| `ingest(message)` | 消息摄入 | 记录每条消息 |
-| `assemble(budget)` | 组装上下文 | 注入模糊层 + 选择历史消息 |
-| `compact()` | 压缩上下文 | 保留 30% + 自动收集涟漪 |
-| `afterTurn(turn)` | 对话结束 | 自动收集高价值对话 |
-| `prepareSubagentSpawn()` | 子 agent 准备 | 精确检索相关涟漪 |
-| `onSubagentEnded()` | 子 agent 结束 | 收集重要结果 |
+## 环境变量
 
----
+所有配置统一在 `openclaw.json` 的 `env` 字段：
 
-## 核心理念
+- `INSIGHT_SYSTEM_PATH`: 数据目录路径
+- `FUZZY_BUDGET`: 模糊层 token 预算
+- `AUTO_COLLECT_MIN_TEMP`: 自动收集最低温度
+- `RESONANCE_TEMP_THRESHOLD`: 共振温度阈值
+- `RESONANCE_TIME_THRESHOLD`: 共振时间阈值
 
-> **模糊而精准**
-> - 启动时只加载模糊层，极简概要
-> - 按需加载精确层，精准检索
-> - 深度层用于复盘和分析
+## ContextEngine 七个钩子
 
----
+1. `bootstrap()` - 初始化
+2. `ingest(message)` - 消息摄入
+3. `assemble(budget)` - 组装上下文
+4. `compact()` - 压缩记忆
+5. `afterTurn(turn)` - 轮次后处理
+6. `prepareSubagentSpawn(parentContext)` - 子代理准备
+7. `onSubagentEnded(result)` - 子代理结束
 
-## License
+## 迁移指南
 
-MIT
+只需复制 `insight-system/` 目录到新环境，更新 `openclaw.json` 的 `env.INSIGHT_SYSTEM_PATH` 即可。
